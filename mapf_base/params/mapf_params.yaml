@@ -1,0 +1,38 @@
+agent_num: 2
+global_frame_id: map
+
+planner_time_tolerance: 2.0
+# 最好设成地图分辨率
+goal_tolerance: 1.0
+
+# agent_name:
+#   agent_0: tb_0
+#   agent_1: tb_1
+
+# base_frame_id:
+#   agent_0: tb_0/base_link
+#   agent_1: tb_1/base_link
+
+# goal_topic:
+#   agent_0: tb_0/goal
+#   agent_1: tb_1/goal
+
+# plan_topic:
+#   agent_0: tb_0/plan
+#   agent_1: tb_1/plan
+
+agent_name:
+  agent_0: rb_0
+  agent_1: rb_1
+
+base_frame_id:
+  agent_0: rb_0/base_link
+  agent_1: rb_1/base_link
+
+goal_topic:
+  agent_0: rb_0/goal
+  agent_1: rb_1/goal
+
+plan_topic:
+  agent_0: rb_0/plan
+  agent_1: rb_1/plan
