@@ -1,0 +1,7 @@
+<library path="lib/libcbs_planner_ros">
+  <class name="mapf_planner/CBSROS" type="mapf::CBSROS" base_class_type="mapf::MAPFROS">
+    <description>
+      A implementation of cbs planner.
+    </description>
+  </class>
+</library>
