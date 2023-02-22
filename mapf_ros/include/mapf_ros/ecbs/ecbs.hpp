@@ -120,11 +120,11 @@ public:
 
     for (size_t i = 0; i < initialStates.size(); ++i) {
       if (i < solution.size() && solution[i].states.size() > 1) {
-        std::cout << initialStates[i] << " " << solution[i].states.front().first
-                  << std::endl;
+        // std::cout << initialStates[i] << " " << solution[i].states.front().first
+        //           << std::endl;
         assert(initialStates[i] == solution[i].states.front().first);
         start.solution[i] = solution[i];
-        std::cout << "use existing solution for agent: " << i << std::endl;
+        // std::cout << "use existing solution for agent: " << i << std::endl;
       } else {
         LowLevelEnvironment llenv(m_env, i, start.constraints[i],
                                   start.solution);
@@ -238,13 +238,13 @@ public:
 
       Conflict conflict;
       if (!m_env.getFirstConflict(P.solution, conflict)) {
-        std::cout << "done; cost: " << P.cost << std::endl;
+        // std::cout << "done; cost: " << P.cost << std::endl;
         solution = P.solution;
         return true;
       }
 
       // create additional nodes to resolve conflict
-      std::cout << "Found conflict: " << conflict << std::endl;
+      // std::cout << "Found conflict: " << conflict << std::endl;
       // std::cout << "Found conflict at t=" << conflict.time << " type: " <<
       // conflict.type << std::endl;
 
@@ -253,7 +253,7 @@ public:
       for (const auto &c : constraints) {
         // std::cout << "Add HL node for " << c.first << std::endl;
         size_t i = c.first;
-        std::cout << "create child with id " << id << std::endl;
+        // std::cout << "create child with id " << id << std::endl;
         HighLevelNode newNode = P;
         newNode.id = id;
         // (optional) check that this constraint was not included already
@@ -277,7 +277,7 @@ public:
         newNode.focalHeuristic = m_env.focalHeuristic(newNode.solution);
 
         if (success) {
-          std::cout << "  success. cost: " << newNode.cost << std::endl;
+          // std::cout << "  success. cost: " << newNode.cost << std::endl;
           auto handle = open.push(newNode);
           (*handle).handle = handle;
           if (newNode.cost <= bestCost * m_w) {
