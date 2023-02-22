@@ -14,7 +14,9 @@ The following algorithms are currently implemented:
 
 The same process as the ros code package, just:
 
-```catkin_make```
+```
+catkin_make
+```
 
 ## Example
 
