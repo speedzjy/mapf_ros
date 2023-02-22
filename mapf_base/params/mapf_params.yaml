@@ -1,7 +1,7 @@
 agent_num: 2
 global_frame_id: map
 
-planner_time_tolerance: 2.0
+planner_time_tolerance: 5.0
 # 最好设成地图分辨率
 goal_tolerance: 1.0
 
