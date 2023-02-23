@@ -47,6 +47,19 @@ provided by CBS.
 
  Safe Interval Path Planning(SIPP) is a local planner for a single agent, using which, a collision-free plan can be generated, after considering the static and dynamic obstacles in the environment.In the case of multi-agent path planning with priority, the other agents in the environment are considered as dynamic obstacles. The trajectory of the agent that plans first will be regarded as the dynamic obstacle trajectory attached to the constraints of the agents that plan later.
 
+ The implementation of Prioritized Planning using SIPP is an **example code**. The code to check swap has not been written yet.
+
+|           No swap (Success)           |
+|:------------------------------------:|
+|![No swap success](./doc/sipp_no_swap.gif) |
+
+|           Swap (Failure)           |
+|:------------------------------------:|
+| ![](./doc/sipp_swap.gif)|
+
+#### Reference
+
+- [SIPP: Safe Interval Path Planning for Dynamic Environments](https://www.cs.cmu.edu/~maxim/files/sipp_icra11.pdf)
 
 
 
