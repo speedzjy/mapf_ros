@@ -94,7 +94,6 @@ void MAPFBase::getParam() {
   nh_.param<std::string>("global_frame_id", global_frame_id_, "map");
   nh_.param<int>("agent_num", agent_num_, 1);
 
-  agent_name_.resize(agent_num_);
   base_frame_id_.resize(agent_num_);
   plan_topic_.resize(agent_num_);
 
@@ -103,8 +102,6 @@ void MAPFBase::getParam() {
                            base_frame_id_[i], "base_link");
     nh_.param<std::string>("plan_topic/agent_" + std::to_string(i),
                            plan_topic_[i], "plan");
-    nh_.param<std::string>("agent_name/agent_" + std::to_string(i),
-                           agent_name_[i], "agent_name_0");
   }
 }
 

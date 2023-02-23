@@ -77,7 +77,6 @@ private:
   // mapf params
   std::string planner_name_;
   int agent_num_;
-  std::vector<std::string> agent_name_;
   std::string global_frame_id_;
   double planner_time_tolerance_;
   double goal_tolerance_;
