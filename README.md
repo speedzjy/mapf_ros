@@ -1,15 +1,5 @@
 # Multi-Agent Path Finding (MAPF) in ROS
 
-## Introduction
-In order to verify the multi-agent path planning algorithms on **ROS**, 
-this repository writes a **ROS wrapper** on the core code of some mapf algorithms(which mainly come from [HERE](https://github.com/whoenig/libMultiRobotPlanning)) as **ros plugins**. The content of [this repository](https://github.com/atb033/multi_agent_path_planning) also provides a lot of help.
-
-The following algorithms are currently implemented:
-
-+ Conflict-Based Search (CBS)
-+ Enhanced Conflict-Based Search (ECBS)
-+ Prioritized Planning using SIPP(**example code** for SIPP, the code to check swap has not been written yet)
-
 <!-- TOC -->
 
 - [Multi-Agent Path Finding (MAPF) in ROS](#multi-agent-path-finding-mapf-in-ros)
@@ -24,24 +14,34 @@ The following algorithms are currently implemented:
       - [Reference](#reference-2)
   - [Introduction of Code Structure](#introduction-of-code-structure)
     - [Nodes](#nodes)
-      - [1 mapf\_base](#1-mapf_base)
-        - [1.1 Node sturcture](#11-node-sturcture)
-        - [1.2 Subscribed Topics](#12-subscribed-topics)
-        - [1.3 Published Topics](#13-published-topics)
-        - [1.4 Parameters](#14-parameters)
-      - [2 goal\_transformer](#2-goal_transformer)
-        - [2.1 Node sturcture](#21-node-sturcture)
-        - [2.2 Subscribed Topics](#22-subscribed-topics)
-        - [2.3 Published Topics](#23-published-topics)
-        - [2.4 Parameters](#24-parameters)
-      - [3 plan\_executor](#3-plan_executor)
-        - [3.1 Node sturcture](#31-node-sturcture)
-        - [3.2 Subscribed Topics](#32-subscribed-topics)
-        - [3.3 Published Topics](#33-published-topics)
-        - [3.4 Parameters](#34-parameters)
+      - [mapf\_base](#mapf_base)
+        - [Node sturcture](#node-sturcture)
+        - [Subscribed Topics](#subscribed-topics)
+        - [Published Topics](#published-topics)
+        - [Parameters](#parameters)
+      - [goal\_transformer](#goal_transformer)
+        - [Node sturcture](#node-sturcture-1)
+        - [Subscribed Topics](#subscribed-topics-1)
+        - [Published Topics](#published-topics-1)
+        - [Parameters](#parameters-1)
+      - [plan\_executor](#plan_executor)
+        - [Node sturcture](#node-sturcture-2)
+        - [Subscribed Topics](#subscribed-topics-2)
+        - [Published Topics](#published-topics-2)
+        - [Parameters](#parameters-2)
     - [ROS plugin picture](#ros-plugin-picture)
 
 <!-- /TOC -->
+
+## Introduction
+In order to verify the multi-agent path planning algorithms on **ROS**, 
+this repository writes a **ROS wrapper** on the core code of some mapf algorithms(which mainly come from [HERE](https://github.com/whoenig/libMultiRobotPlanning)) as **ros plugins**. The content of [this repository](https://github.com/atb033/multi_agent_path_planning) also provides a lot of help.
+
+The following algorithms are currently implemented:
+
++ Conflict-Based Search (CBS)
++ Enhanced Conflict-Based Search (ECBS)
++ Prioritized Planning using SIPP(**example code** for SIPP, the code to check swap has not been written yet)
 
 ## Build
 
@@ -97,26 +97,28 @@ provided by CBS.
 
 
 ## Introduction of Code Structure
-### Nodes
-#### 1 mapf_base
 
-##### 1.1 Node sturcture
+### Nodes
+
+#### mapf_base
+
+##### Node sturcture
 The mapf_base node is the central control node just like move_base in ros navigation package.
 
 **Notes: The mapf_base node only generates plans and does not publish control commands. A possible control method is to send the move_base goals to execute the control commands according to the time step of the plan.**
 
 ![](./doc/mapf_base_node.png)
 
-##### 1.2 Subscribed Topics
+##### Subscribed Topics
 - /mapf_base/mapf_goal [mapf_msgs/Goal] A set of goals for each agent that mapf_base pursus in the world.
 - /tf [tf/tfMessage] transforms from map to base_link of each agent
 
-##### 1.3 Published Topics
+##### Published Topics
 - /mapf_base/**parameter: plan_topic** [nav_msgs/Path] | gui path to show in rviz
 - /mapf_base/global_plan [mapf_msgs/GlobalPlan] | global solution: A set of single plans with timestep
 - /mapf_base/global_costmap/costmap [nav_msgs/OccupancyGrid] | costmap of map from map_server node
 
-##### 1.4 Parameters
+##### Parameters
 - ~mapf_planner: (string, default: "mapf_planner/CBSROS")
 - ~agent_num: (int, default: 2) | the number of agents.
 - ~global_frame_id: map (string, default: map) | global frame_id in /tf.
@@ -138,49 +140,50 @@ The mapf_base node is the central control node just like move_base in ros naviga
 
 The following are example nodes for test mapf algorithm.
 
-#### 2 goal_transformer
+#### goal_transformer
 
-##### 2.1 Node sturcture
+##### Node sturcture
 This node combines individual goal information into mapf format.
 
 ![](./doc/goal_transformer.png)
 
-##### 2.2 Subscribed Topics
+##### Subscribed Topics
 - **parameter: goal_topic** [geometry_msgs/PoseStamped]
 - /mapf_base/goal_init_flag [std_msgs/Bool] | if true, this node will pub mapf_goal
 
-##### 2.3 Published Topics
+##### Published Topics
 
 - /mapf_base/mapf_goal [mapf_msgs/Goal] | send to mapf_base node
 
-##### 2.4 Parameters
+##### Parameters
 
 - ~goal_topic: (string, default: "rb_0/goal") | used to receive goal for each agent, example:
   - goal_topic:
     - agent_0: rb_0/goal
     - agent_1: rb_1/goal
 
-#### 3 plan_executor
+#### plan_executor
 
-##### 3.1 Node sturcture
+##### Node sturcture
 This node sends the received mapf plan to move_base according to time step.
 
 ![](./doc/plan_executor.png)
 
-##### 3.2 Subscribed Topics
+##### Subscribed Topics
 - /mapf_base/global_plan [mapf_msgs/GlobalPlan] | the global plan from mapf_base
 
-##### 3.3 Published Topics
+##### Published Topics
 
 - /**agent_name**/move_base/goal [move_base_msgs/MoveBaseActionGoal]
 
-##### 3.4 Parameters
+##### Parameters
 - ~agent_name: (string, default: "rb_0") | set the agent name (which will be send to move_base) according to the agent_num param, example:
   - agent_name:
     - agent_0: rb_0
     - agent_1: rb_1
 
 ---------------------------
+
 ### ROS plugin picture
 
 ![](./doc/plugins_pic.png)
