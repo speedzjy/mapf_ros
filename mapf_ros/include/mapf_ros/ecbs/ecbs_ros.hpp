@@ -55,7 +55,7 @@ public:
                 mapf_msgs::GlobalPlan &plan, double &cost,
                 const double &time_tolerance) override;
 
-  // 更新全局障碍物线程
+  // Update global obstacle thread
   void updateObstacleThread();
 
   void worldToMap(const double &wx, const double &wy, unsigned int &mx,
@@ -83,7 +83,7 @@ protected:
   costmap_2d::Costmap2D *costmap_;
   std::string global_frame_;
 
-  // 更新全局障碍物线程
+  // Update global obstacle thread
   boost::thread *update_obstacle_thread_;
 
   // mapf env
