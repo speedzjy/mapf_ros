@@ -14,7 +14,10 @@ footprint: [[0.48, -0.40], [0.48, 0.40], [-0.48, 0.40], [-0.48, -0.40]]
 footprint_padding: 0.1
 
 global_frame: map
+
+# choose one of "base_link" frame of the agents 
 robot_base_frame: rb_0/base_link
+
 update_frequency: 1.0
 publish_frequency: 1.0
 width: 60.0

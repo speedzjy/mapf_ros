@@ -1,28 +1,30 @@
 <launch>
 
+  <!-- 1.load the low resolution map -->
+  <arg name="map" default="rgmap0217_low_reso.yaml" />
   <group ns="mapf_base">
-    <arg name="map" default="rgmap0207_low_reso.yaml" />
     <node name="map_server" pkg="map_server" type="map_server"
       args="$(find ridgeback_navigation)/maps/$(arg map)" />
-    <!-- <node name="map_server" pkg="map_server" type="map_server"
-      args="$(find rbx1_nav)/maps/$(arg map)" /> -->
   </group>
 
+  <!-- 2. launch mapf_base node -->
   <node pkg="mapf_base" type="mapf_base" name="mapf_base" output="screen" respawn="true">
     <rosparam file="$(find mapf_base)/params/costmap_params.yaml" command="load" ns="global_costmap" />
     <rosparam file="$(find mapf_base)/params/mapf_params.yaml" command="load" />
 
-    <param name="mapf_planner" value="mapf_planner/SIPPROS" />
+    <!-- name of mapf_planner; possible values: {
+    mapf_planner/CBSROS, 
+    mapf_planner/ECBSROS,
+    mapf_planner/SIPPROS
+    } -->
+    <param name="mapf_planner" value="mapf_planner/ECBSROS" />
     <rosparam file="$(find mapf_base)/params/ecbs_params.yaml" command="load" />
   </node>
 
+  <!-- 3. launch goal_transformer and plan_executor -->
   <group ns="mapf_base">
-    <node pkg="mapf_base" type="goal_transformer" name="goal_transformer"
-      output="screen" respawn="false">
-    </node>
-    <!-- <node pkg="mapf_base" type="plan_executor" name="plan_executor"
-      output="screen" respawn="false">
-    </node> -->
+    <node pkg="mapf_base" type="goal_transformer" name="goal_transformer" output="screen"> </node>
+    <node pkg="mapf_base" type="plan_executor" name="plan_executor" output="screen"> </node>
   </group>
 
 </launch>
