@@ -4,7 +4,6 @@
 
 - [Multi-Agent Path Finding (MAPF) in ROS](#multi-agent-path-finding-mapf-in-ros)
   - [Introduction](#introduction)
-  - [Build](#build)
   - [Example](#example)
     - [Conflict-Based Search (CBS)](#conflict-based-search-cbs)
       - [Reference](#reference)
@@ -12,6 +11,10 @@
       - [Reference](#reference-1)
     - [Prioritized Planning using SIPP](#prioritized-planning-using-sipp)
       - [Reference](#reference-2)
+  - [Build](#build)
+  - [Launch](#launch)
+    - [example launch](#example-launch)
+    - [Notes: (very importment)](#notes-very-importment)
   - [Introduction of Code Structure](#introduction-of-code-structure)
     - [Nodes](#nodes)
       - [1 mapf\_base](#1-mapf_base)
@@ -29,8 +32,11 @@
         - [3.2 Subscribed Topics](#32-subscribed-topics)
         - [3.3 Published Topics](#33-published-topics)
         - [3.4 Parameters](#34-parameters)
+      - [4 whole nodes graph](#4-whole-nodes-graph)
+  - [](#)
     - [ROS plugin picture](#ros-plugin-picture)
 
+<!-- /TOC -->
 <!-- /TOC -->
 
 ## Introduction
@@ -42,14 +48,6 @@ The following algorithms are currently implemented:
 + Conflict-Based Search (CBS)
 + Enhanced Conflict-Based Search (ECBS)
 + Prioritized Planning using SIPP(**example code** for SIPP, the code to check swap has not been written yet)
-
-## Build
-
-The same process as the ros code package, just:
-
-```
-catkin_make
-```
 
 ## Example
 
@@ -94,8 +92,62 @@ provided by CBS.
 
 - [SIPP: Safe Interval Path Planning for Dynamic Environments](https://www.cs.cmu.edu/~maxim/files/sipp_icra11.pdf)
 
+## Build
 
+The same process as the ros code package, just:
 
+```bash
+catkin_make
+```
+
+## Launch
+
+Take a look at the [code structure bellow](#code_structure), it might help.
+
+The following is the sample code for launch, which is placed in the [mapf_base/launch](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/launch/mapf_example.launch)
+### example launch
+```xml
+<launch>
+
+  <!-- 1.load the low resolution map -->
+  <arg name="map" default="mymap_low_resolution.yaml" />
+  <group ns="mapf_base">
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find ros_package_name)/maps/$(arg map)" />
+  </group>
+
+  <!-- 2. launch mapf_base node -->
+  <node pkg="mapf_base" type="mapf_base" name="mapf_base" output="screen" respawn="true">
+    <rosparam file="$(find mapf_base)/params/costmap_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find mapf_base)/params/mapf_params.yaml" command="load" />
+
+    <!-- name of mapf_planner; possible values: {
+    mapf_planner/CBSROS, 
+    mapf_planner/ECBSROS,
+    mapf_planner/SIPPROS
+    } -->
+    <param name="mapf_planner" value="mapf_planner/SIPPROS" />
+    <!-- <rosparam file="$(find mapf_base)/params/ecbs_params.yaml" command="load" /> -->
+  </node>
+
+  <!-- 3. launch goal_transformer and plan_executor -->
+  <group ns="mapf_base">
+    <node pkg="mapf_base" type="goal_transformer" name="goal_transformer" output="screen"> </node>
+    <node pkg="mapf_base" type="plan_executor" name="plan_executor" output="screen"> </node>
+  </group>
+
+</launch>
+```
+
+There are three param files that need to be configured: [mapf_params.yaml](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/params/mapf_params.yaml), [costmap_params](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/params/costmap_params.yaml) and [ecbs_params.yaml](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/params/ecbs_params.yaml)(If choose ecbs planner).
+
+### Notes: (very importment)
+It is **strongly recommended** to use **low-resolution maps for mapf planning** search and **high-resolution maps for local planning** with a single robot. The reasons are as follows:
+
+- Both CBS and ECBS are space-time searches, if the map dimension is too high, the search will be extremely time-consuming.
+- Since the paths planned by mapf have time steps, in order to ensure that the robots do not collide, the minimum distance between each time step must be greater than the diameter of the robot.
+
+----------------------------------------------------
+<a id="code_structure"></a>
 ## Introduction of Code Structure
 ### Nodes
 #### 1 mapf_base
@@ -129,7 +181,7 @@ The mapf_base node is the central control node just like move_base in ros naviga
     - agent_0: rb_0/base_link
     - agent_1: rb_1/base_link
 
-- ~plan_topic: (string, default: "plan") | which will be used to publish gui path, example:
+- ~plan_topic: (string, default: "plan") | which will be used to publish gui path in rviz, example:
   - plan_topic:
     - agent_0: rb_0/plan
     - agent_1: rb_1/plan
@@ -175,11 +227,14 @@ This node sends the received mapf plan to move_base according to time step.
 - /**agent_name**/move_base/goal [move_base_msgs/MoveBaseActionGoal]
 
 ##### 3.4 Parameters
-- ~agent_name: (string, default: "rb_0") | set the agent name (which will be send to move_base) according to the agent_num param, example:
+- ~agent_name: (string, default: "rb_0") | set the agent name (topic "(arg agent_name)/move_base/goal" will be send to move_base) according to the agent_num param, example:
   - agent_name:
     - agent_0: rb_0
     - agent_1: rb_1
 
+#### 4 whole nodes graph
+
+![](./doc/whole_graph.png)
 ---------------------------
 ### ROS plugin picture
 
