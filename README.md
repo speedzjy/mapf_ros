@@ -148,6 +148,7 @@ It is **strongly recommended** to use **low-resolution maps for mapf planning** 
 
 ----------------------------------------------------
 <a id="code_structure"></a>
+
 ## Introduction of Code Structure
 ### Nodes
 #### 1 mapf_base
