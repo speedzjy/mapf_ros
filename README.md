@@ -1,40 +1,44 @@
 # Multi-Agent Path Finding (MAPF) in ROS
 
+中文版本文档在[README.zn-CN.md](https://github.com/speedzjy/mapf_ros/blob/main/README.zn-CN.md)
+
+---------------------------------------------
+
 <!-- TOC -->
 
-- [Multi-Agent Path Finding (MAPF) in ROS](#multi-agent-path-finding-mapf-in-ros)
-  - [Introduction](#introduction)
-  - [Example](#example)
-    - [Conflict-Based Search (CBS)](#conflict-based-search-cbs)
-      - [Reference](#reference)
-    - [Enhanced Conflict-Based Search (ECBS)](#enhanced-conflict-based-search-ecbs)
-      - [Reference](#reference-1)
-    - [Prioritized Planning using SIPP](#prioritized-planning-using-sipp)
-      - [Reference](#reference-2)
-  - [Build](#build)
-  - [Launch](#launch)
-    - [example launch](#example-launch)
-    - [Notes: (very importment)](#notes-very-importment)
-  - [Introduction of Code Structure](#introduction-of-code-structure)
-    - [Nodes](#nodes)
-      - [1 mapf\_base](#1-mapf_base)
-        - [1.1 Node sturcture](#11-node-sturcture)
-        - [1.2 Subscribed Topics](#12-subscribed-topics)
-        - [1.3 Published Topics](#13-published-topics)
-        - [1.4 Parameters](#14-parameters)
-      - [2 goal\_transformer](#2-goal_transformer)
-        - [2.1 Node sturcture](#21-node-sturcture)
-        - [2.2 Subscribed Topics](#22-subscribed-topics)
-        - [2.3 Published Topics](#23-published-topics)
-        - [2.4 Parameters](#24-parameters)
-      - [3 plan\_executor](#3-plan_executor)
-        - [3.1 Node sturcture](#31-node-sturcture)
-        - [3.2 Subscribed Topics](#32-subscribed-topics)
-        - [3.3 Published Topics](#33-published-topics)
-        - [3.4 Parameters](#34-parameters)
-      - [4 whole nodes graph](#4-whole-nodes-graph)
-  - [](#)
-    - [ROS plugin picture](#ros-plugin-picture)
+- [Multi-Agent Path Finding MAPF in ROS](#multi-agent-path-finding-mapf-in-ros)
+    - [Introduction](#introduction)
+    - [Example](#example)
+        - [Conflict-Based Search CBS](#conflict-based-search-cbs)
+            - [Reference](#reference)
+        - [Enhanced Conflict-Based Search ECBS](#enhanced-conflict-based-search-ecbs)
+            - [Reference](#reference)
+        - [Prioritized Planning using SIPP](#prioritized-planning-using-sipp)
+            - [Reference](#reference)
+    - [Build](#build)
+    - [Launch](#launch)
+        - [example launch](#example-launch)
+        - [Notes: very importment](#notes-very-importment)
+    - [Introduction of Code Structure](#introduction-of-code-structure)
+        - [Nodes](#nodes)
+            - [mapf_base](#mapf_base)
+                - [Node sturcture](#node-sturcture)
+                - [Subscribed Topics](#subscribed-topics)
+                - [Published Topics](#published-topics)
+                - [Parameters](#parameters)
+            - [goal_transformer](#goal_transformer)
+                - [Node sturcture](#node-sturcture)
+                - [Subscribed Topics](#subscribed-topics)
+                - [Published Topics](#published-topics)
+                - [Parameters](#parameters)
+            - [plan_executor](#plan_executor)
+                - [Node sturcture](#node-sturcture)
+                - [Subscribed Topics](#subscribed-topics)
+                - [Published Topics](#published-topics)
+                - [Parameters](#parameters)
+            - [whole nodes graph](#whole-nodes-graph)
+    - [![]./doc/whole_graph.png](#docwhole_graphpng)
+        - [ROS plugin picture](#ros-plugin-picture)
 
 <!-- /TOC -->
 <!-- /TOC -->
@@ -143,7 +147,7 @@ There are three param files that need to be configured: [mapf_params.yaml](https
 ### Notes: (very importment)
 It is **strongly recommended** to use **low-resolution maps for mapf planning** search and **high-resolution maps for local planning** with a single robot. The reasons are as follows:
 
-- Both CBS and ECBS are space-time searches, if the map dimension is too high, the search will be extremely time-consuming.
+- Both CBS and ECBS are space-time searches, if the map dimension is too high, the search will be extremely time-consuming. Solving MAPF optimally (i.e., finding a conflict-free solution of minimal cost) is NP-Complete.
 - Since the paths planned by mapf have time steps, in order to ensure that the robots do not collide, the minimum distance between each time step must be greater than the diameter of the robot.
 
 ----------------------------------------------------
