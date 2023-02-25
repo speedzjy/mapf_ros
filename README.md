@@ -161,7 +161,7 @@ The mapf_base node is the central control node just like move_base in ros naviga
 ![](./doc/mapf_base_node.png)
 
 ##### 1.2 Subscribed Topics
-- /mapf_base/mapf_goal [mapf_msgs/Goal] A set of goals for each agent that mapf_base pursus in the world.
+- /mapf_base/mapf_goal [mapf_msgs/Goal] A set of goals for each agent that mapf_base pursues in the world.
 - /tf [tf/tfMessage] transforms from map to base_link of each agent
 
 ##### 1.3 Published Topics
