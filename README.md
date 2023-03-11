@@ -1,8 +1,14 @@
 # Multi-Agent Path Finding (MAPF) in ROS
 
-中文版本文档在[README.zh-CN.md](https://github.com/speedzjy/mapf_ros/blob/main/README.zh-CN.md)
+<div align='center'>
+  <img src='./doc/logo.png'/>
+</div>
 
----------------------------------------------
+<div align='center'>
+  English | <a href='./README.zh-CN.md'>中文</a>
+</div>
+
+---
 
 <!-- TOC -->
 
@@ -54,6 +60,8 @@ The following algorithms are currently implemented:
 + Prioritized Planning using SIPP(**example code** for SIPP, the code to check swap has not been written yet)
 
 ## Example
+
+The test case repository shown in gif is in [https://github.com/speedzjy/ridgeback_mapf](https://github.com/speedzjy/ridgeback_mapf)
 
 ### Conflict-Based Search (CBS)
 

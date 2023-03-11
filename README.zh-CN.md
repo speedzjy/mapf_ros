@@ -1,8 +1,14 @@
 # Multi-Agent Path Finding (MAPF) in ROS
 
-The English version of this document is [READMD.md](https://github.com/speedzjy/mapf_ros/blob/main/README.md)
+<div align='center'>
+  <img src='./doc/logo.png'/>
+</div>
 
-------------------------------------------------
+<div align='center'>
+  <a href='./README.md'>English</a> | 中文
+</div>
+
+---
 
 <!-- TOC -->
 
@@ -54,12 +60,15 @@ The English version of this document is [READMD.md](https://github.com/speedzjy/
 源算法库：[https://github.com/whoenig/libMultiRobotPlanning](https://github.com/whoenig/libMultiRobotPlanning)
 
 本项目已经实现的多机规划方法有：
--  Conflict-Based Search (CBS)
+- Conflict-Based Search (CBS)
 - Enhanced Conflict-Based Search (ECBS)
 - Prioritized Planning using SIPP (样例代码, swap情况的判断还未实现)
 
 
 ## Example
+
+gif 展示的测试用例仓库在 [https://github.com/speedzjy/ridgeback_mapf](https://github.com/speedzjy/ridgeback_mapf)
+
 ### Conflict-Based Search (CBS)
 CBS 是一族方法．算法的思想主要将多机规划分为**两层**，**底层**执行带有约束的单机规划，例如用传统 A* 算法，**顶层**遍历底层的规划路径，解决路径之间的冲突并施加约束．CBS 算法给出 MAPF 问题的全局最优结果．
 
