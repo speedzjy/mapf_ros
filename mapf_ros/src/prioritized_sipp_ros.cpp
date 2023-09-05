@@ -283,7 +283,7 @@ void SIPPROS::mapToWorld(const unsigned int &mx, const unsigned int &my,
 }
 
 void SIPPROS::clearCell(const unsigned int &mx, const unsigned int &my) {
-  costmap_->setCost(mx, my, costmap_2d::FREE_SPACE);
+  // costmap_->setCost(mx, my, costmap_2d::FREE_SPACE);
   if (obstacles_.find(State(mx, my)) != obstacles_.end()) {
     obstacles_.erase(State(mx, my));
   }

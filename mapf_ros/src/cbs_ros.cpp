@@ -254,7 +254,7 @@ void CBSROS::mapToWorld(const unsigned int &mx, const unsigned int &my,
 }
 
 void CBSROS::clearCell(const unsigned int &mx, const unsigned int &my) {
-  costmap_->setCost(mx, my, costmap_2d::FREE_SPACE);
+  // costmap_->setCost(mx, my, costmap_2d::FREE_SPACE);
   if (obstacles_.find(Location(mx, my)) != obstacles_.end()) {
     obstacles_.erase(Location(mx, my));
   }

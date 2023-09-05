@@ -66,7 +66,7 @@ public:
                     const nav_msgs::Path &goal, mapf_msgs::GlobalPlan &plan,
                     double &cost);
 
-  // set the associated costs in the cost map to be free
+  // set the associated location in obstacles to be free
   void clearCell(const unsigned int &mx, const unsigned int &my);
 
   bool checkIsObstacle(const unsigned int &mx, const unsigned int &my);
