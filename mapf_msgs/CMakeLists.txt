@@ -1,22 +1,21 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.8)
 project(mapf_msgs)
 
-find_package(
-  catkin REQUIRED
-  COMPONENTS geometry_msgs
-             message_filters
-             message_generation
-             nav_msgs
-             roscpp
-             rospy
-             sensor_msgs
-             std_msgs)
+find_package(ament_cmake REQUIRED)
 
-add_message_files(FILES Goal.msg SinglePlan.msg GlobalPlan.msg)
+find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
-generate_messages(DEPENDENCIES std_msgs nav_msgs mapf_msgs)
+find_package(rosidl_default_generators REQUIRED)
 
-catkin_package(CATKIN_DEPENDS geometry_msgs message_generation nav_msgs
-               sensor_msgs std_msgs)
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Goal.msg"
+  "msg/SinglePlan.msg"
+  "msg/GlobalPlan.msg"
+  DEPENDENCIES geometry_msgs nav_msgs sensor_msgs std_msgs
+)
 
-include_directories(include ${catkin_INCLUDE_DIRS})
+ament_package()
+
