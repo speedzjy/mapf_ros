@@ -34,7 +34,10 @@
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
-    <mapf_ros plugin="${prefix}/mapf_planner_plugins.xml" />
+    <build_type>ament_cmake</build_type>
+    <mapf_ros plugin="${prefix}/cbs_planner_plugins.xml" />
+    <mapf_ros plugin="${prefix}/ecbs_planner_plugins.xml" />
+    <mapf_ros plugin="${prefix}/sipp_planner_plugins.xml" />
   </export>
 
 </package>

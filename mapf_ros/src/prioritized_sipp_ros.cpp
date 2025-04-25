@@ -23,15 +23,16 @@
  * SOFTWARE.
  *
  *********************************************************************/
-#include <pluginlib/class_list_macros.h>
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
+
+#include "pluginlib/class_list_macros.hpp"
 
 #include <tf2/utils.h>
 #include <tf2_ros/transform_listener.h>
 
-#include "mapf_msgs/GlobalPlan.h"
-#include "mapf_msgs/Goal.h"
-#include "mapf_msgs/SinglePlan.h"
+#include "mapf_msgs/msg/global_plan.hpp"
+#include "mapf_msgs/msg/goal.h"
+#include "mapf_msgs/msg/single_plan.h"
 
 // ROS Wrapper for SIPP
 #include "mapf_ros/sipp/prioritized_sipp_ros.hpp"
@@ -43,13 +44,13 @@ namespace mapf {
 
 SIPPROS::SIPPROS() : costmap_(nullptr), initialized_(false) {}
 
-SIPPROS::SIPPROS(std::string name, costmap_2d::Costmap2DROS *costmap_ros)
+SIPPROS::SIPPROS(std::string name, nav2_costmap_2d::Costmap2DROS *costmap_ros)
     : costmap_(nullptr), initialized_(false) {
   initialize(name, costmap_ros);
 }
 
 void SIPPROS::initialize(std::string name,
-                         costmap_2d::Costmap2DROS *costmap_ros) {
+                         nav2_costmap_2d::Costmap2DROS *costmap_ros) {
   if (!initialized_) {
     // ROS_INFO("New CBS planner.");
 
@@ -64,12 +65,11 @@ void SIPPROS::initialize(std::string name,
 }
 
 void SIPPROS::updateObstacleThread() {
-  ROS_INFO_NAMED("update_obstacle_thread", "Updating obstacle state...");
-  ros::NodeHandle thread_nh;
-  ros::Rate loop_rate(0.5); // update obstacle every 2s
+  RCLCPP_INFO(logger_, "update_obstacle_thread: Updating obstacle state...");
+  rclcpp::WallRate loop_rate(0.5); // update obstacle every 2s
 
   try {
-    while (thread_nh.ok()) {
+    while (rclcpp::ok()) {
       int dimx = costmap_->getSizeInCellsX(),
           dimy = costmap_->getSizeInCellsY();
       const unsigned char *costarr = costmap_->getCharMap();
@@ -83,7 +83,8 @@ void SIPPROS::updateObstacleThread() {
           int offset = 0, num_obs = 0;
           for (int i = 0; i < dimy; ++i) {
             for (int j = 0; j < dimx; ++j) {
-              if (costarr[offset] >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+              if (costarr[offset] >=
+                  nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
                 obstacles_.insert(State(j, i));
                 num_obs++;
               }
@@ -98,35 +99,40 @@ void SIPPROS::updateObstacleThread() {
       boost::this_thread::interruption_point();
     }
   } catch (boost::thread_interrupted const &) {
-    ROS_INFO_NAMED("sipp_planner", "Boost interrupt Exit Obstacle.");
+    RCLCPP_INFO(logger_, "sipp_planner: Boost interrupt Exit Obstacle.");
   }
 }
 
-bool SIPPROS::makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
-                       mapf_msgs::GlobalPlan &plan, double &cost,
+bool SIPPROS::makePlan(const nav_msgs::msg::Path &start,
+                       const nav_msgs::msg::Path &goal,
+                       mapf_msgs::msg::GlobalPlan &plan, double &cost,
                        const double &time_tolerance) {
   // until tf can handle transforming things that are way in the past... we'll
   // require the goal to be in our global frame
   if (goal.header.frame_id != global_frame_) {
-    ROS_ERROR("The goal pose passed to this planner must be in the %s frame.  "
-              "It is instead in the %s frame.",
-              global_frame_.c_str(), goal.header.frame_id.c_str());
+    RCLCPP_ERROR(
+        logger_,
+        "The goal pose passed to this planner must be in the %s frame.  "
+        "It is instead in the %s frame.",
+        global_frame_.c_str(), goal.header.frame_id.c_str());
     return false;
   }
 
   if (start.header.frame_id != global_frame_) {
-    ROS_ERROR("The start pose passed to this planner must be in the %s frame.  "
-              "It is instead in the %s frame.",
-              global_frame_.c_str(), start.header.frame_id.c_str());
+    RCLCPP_ERROR(
+        logger_,
+        "The start pose passed to this planner must be in the %s frame.  "
+        "It is instead in the %s frame.",
+        global_frame_.c_str(), start.header.frame_id.c_str());
     return false;
   }
 
   if (start.poses.empty() || goal.poses.empty()) {
-    ROS_ERROR("Start and goal vectors are empty!");
+    RCLCPP_ERROR(logger_, "Start and goal vectors are empty!");
     return false;
   }
   if (start.poses.size() != goal.poses.size()) {
-    ROS_ERROR("Start and goal vectors are not the same length!");
+    RCLCPP_ERROR(logger_, "Start and goal vectors are not the same length!");
     return false;
   }
 
@@ -161,7 +167,7 @@ bool SIPPROS::makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
     // (QAQ)
 
     if (checkSurroundObstacle(goal_x_i, goal_y_i)) {
-      ROS_ERROR("Goal is surrounded by Obstacles");
+      RCLCPP_ERROR(logger_, "Goal is surrounded by Obstacles");
       return false;
     }
 
@@ -208,7 +214,7 @@ bool SIPPROS::makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
           sipp_t::interval(solution.states.back().second,
                            std::numeric_limits<int>::max()));
     } else {
-      ROS_ERROR("Planning NOT successful!");
+      RCLCPP_ERROR(logger_, "Planning NOT successful!");
     }
   }
 
@@ -222,10 +228,11 @@ bool SIPPROS::makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
     cost = 0;
     generatePlan(solutions, goal, plan, cost);
 
-    ROS_DEBUG_STREAM("Planning successful!");
-    ROS_DEBUG_STREAM("runtime: " << timer.elapsedSeconds());
-    ROS_DEBUG_STREAM("cost: " << cost);
-    ROS_DEBUG_STREAM("makespan(involve start & end): " << plan.makespan);
+    RCLCPP_DEBUG_STREAM(logger_, "Planning successful!");
+    RCLCPP_DEBUG_STREAM(logger_, "runtime: " << timer.elapsedSeconds());
+    RCLCPP_DEBUG_STREAM(logger_, "cost: " << cost);
+    RCLCPP_DEBUG_STREAM(logger_,
+                        "makespan(involve start & end): " << plan.makespan);
   }
 
   return success;
@@ -233,7 +240,8 @@ bool SIPPROS::makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
 
 void SIPPROS::generatePlan(
     const std::vector<PlanResult<State, Action, int>> &solution,
-    const nav_msgs::Path &goal, mapf_msgs::GlobalPlan &plan, double &cost) {
+    const nav_msgs::msg::Path &goal, mapf_msgs::msg::GlobalPlan &plan,
+    double &cost) {
   int &makespan = plan.makespan;
   for (const auto &s : solution) {
     cost += s.cost;
@@ -246,13 +254,13 @@ void SIPPROS::generatePlan(
 
   for (size_t i = 0; i < solution.size(); ++i) {
     // create a message for the plan
-    mapf_msgs::SinglePlan &single_plan = plan.global_plan[i];
-    nav_msgs::Path &single_path = single_plan.plan;
+    mapf_msgs::msg::SinglePlan &single_plan = plan.global_plan[i];
+    nav_msgs::msg::Path &single_path = single_plan.plan;
     single_path.header.frame_id = global_frame_;
-    single_path.header.stamp = ros::Time::now();
+    single_path.header.stamp = clock_->now();
 
     for (const auto &state : solution[i].states) {
-      geometry_msgs::PoseStamped cur_pose;
+      geometry_msgs::msg::PoseStamped cur_pose;
       cur_pose.header.frame_id = single_path.header.frame_id;
       cur_pose.pose.orientation.w = 1;
       mapToWorld(state.first.x, state.first.y, cur_pose.pose.position.x,
@@ -270,10 +278,11 @@ void SIPPROS::generatePlan(
 void SIPPROS::worldToMap(const double &wx, const double &wy, unsigned int &mx,
                          unsigned int &my) {
   if (!costmap_->worldToMap(wx, wy, mx, my)) {
-    ROS_WARN("The robot's start position is off the global costmap. "
-             "Planning will "
-             "always fail, are you sure the robot has been properly "
-             "localized?");
+    RCLCPP_WARN(logger_,
+                "The robot's start position is off the global costmap. "
+                "Planning will "
+                "always fail, are you sure the robot has been properly "
+                "localized?");
   }
 }
 
@@ -290,7 +299,8 @@ void SIPPROS::clearCell(const unsigned int &mx, const unsigned int &my) {
 }
 
 bool SIPPROS::checkIsObstacle(const unsigned int &mx, const unsigned int &my) {
-  return (costmap_->getCost(mx, my) >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE);
+  return (costmap_->getCost(mx, my) >=
+          nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE);
 }
 
 bool SIPPROS::checkSurroundObstacle(const unsigned int &mx,
@@ -314,7 +324,7 @@ SIPPROS::~SIPPROS() {
 
   costmap_ = nullptr;
 
-  ROS_INFO("Exit SIPP planner.");
+  RCLCPP_INFO(logger_, "Exit SIPP planner.");
 }
 
 } // namespace mapf

@@ -216,7 +216,8 @@ bool CBSROS::makePlan(const nav_msgs::msg::Path &start,
 
 void CBSROS::generatePlan(
     const std::vector<PlanResult<State, Action, int>> &solution,
-    const nav_msgs::msg::Path &goal, mapf_msgs::msg::GlobalPlan &plan, double &cost) {
+    const nav_msgs::msg::Path &goal, mapf_msgs::msg::GlobalPlan &plan,
+    double &cost) {
   int &makespan = plan.makespan;
   for (const auto &s : solution) {
     cost += s.cost;
@@ -253,10 +254,11 @@ void CBSROS::generatePlan(
 void CBSROS::worldToMap(const double &wx, const double &wy, unsigned int &mx,
                         unsigned int &my) {
   if (!costmap_->worldToMap(wx, wy, mx, my)) {
-    RCLCPP_WARN(logger_, "The robot's start position is off the global costmap. "
-             "Planning will "
-             "always fail, are you sure the robot has been properly "
-             "localized?");
+    RCLCPP_WARN(logger_,
+                "The robot's start position is off the global costmap. "
+                "Planning will "
+                "always fail, are you sure the robot has been properly "
+                "localized?");
   }
 }
 
@@ -273,7 +275,8 @@ void CBSROS::clearCell(const unsigned int &mx, const unsigned int &my) {
 }
 
 bool CBSROS::checkIsObstacle(const unsigned int &mx, const unsigned int &my) {
-  return (costmap_->getCost(mx, my) >= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE);
+  return (costmap_->getCost(mx, my) >=
+          nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE);
 }
 
 bool CBSROS::checkSurroundObstacle(const unsigned int &mx,

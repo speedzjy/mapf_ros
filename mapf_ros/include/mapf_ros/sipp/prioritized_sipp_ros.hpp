@@ -28,6 +28,8 @@
 #ifndef PRIORITIZED_SIPP_ROS_H
 #define PRIORITIZED_SIPP_ROS_H
 
+#include <boost/thread.hpp>
+
 #include "rclcpp/rclcpp.hpp"
 
 #include "nav_msgs/msg/path.hpp"
@@ -51,7 +53,8 @@ public:
   void initialize(std::string name,
                   nav2_costmap_2d::Costmap2DROS *costmap_ros) override;
 
-  bool makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Path &goal,
+  bool makePlan(const nav_msgs::msg::Path &start,
+                const nav_msgs::msg::Path &goal,
                 mapf_msgs::msg::GlobalPlan &plan, double &cost,
                 const double &time_tolerance) override;
 
@@ -64,8 +67,8 @@ public:
                   double &wy);
 
   void generatePlan(const std::vector<PlanResult<State, Action, int>> &solution,
-                    const nav_msgs::msg::Path &goal, mapf_msgs::msg::GlobalPlan &plan,
-                    double &cost);
+                    const nav_msgs::msg::Path &goal,
+                    mapf_msgs::msg::GlobalPlan &plan, double &cost);
 
   // set the associated location in obstacles to be free
   void clearCell(const unsigned int &mx, const unsigned int &my);
@@ -90,6 +93,12 @@ protected:
   std::unordered_set<State> obstacles_;
 
   bool initialized_;
+
+  // clock
+  rclcpp::Clock::SharedPtr clock_;
+
+  // Logger
+  rclcpp::Logger logger_{rclcpp::get_logger("SIPPROSPlanner")};
 };
 }; // namespace mapf
 

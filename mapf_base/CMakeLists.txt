@@ -1,73 +1,82 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(mapf_base)
 
-find_package(
-  catkin REQUIRED
-  COMPONENTS costmap_2d
-             geometry_msgs
-             mapf_msgs
-             nav_msgs
-             roscpp
-             rospy
-             sensor_msgs
-             std_msgs
-             tf2_geometry_msgs
-             tf2_ros
-             pluginlib
-             mapf_ros)
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(nav2_util REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(nav2_costmap_2d REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(pluginlib REQUIRED)
+find_package(mapf_msgs REQUIRED)
+find_package(mapf_ros REQUIRED)
 
-catkin_package(
-  INCLUDE_DIRS
-  include
-  # LIBRARIES mapf
-  CATKIN_DEPENDS
-  geometry_msgs
-  roscpp
-  rospy
-  sensor_msgs
+include_directories(include)
+
+set(dependencies
+  rclcpp
+  rclcpp_action
+  rclcpp_lifecycle
   std_msgs
   nav_msgs
-  mapf_msgs
-  costmap_2d
+  sensor_msgs
+  geometry_msgs
+  visualization_msgs
+  tf2_geometry_msgs
+  nav2_util
+  tf2_ros
+  nav2_costmap_2d
+  builtin_interfaces
   pluginlib
+  mapf_msgs
   mapf_ros
-  # DEPENDS system_lib
 )
 
-include_directories(include ${catkin_INCLUDE_DIRS})
-
 # mapf_base
-add_library(mapf_base src/mapf_base.cpp)
-target_link_libraries(mapf_base ${catkin_LIBRARIES})
-add_dependencies(mapf_base ${${PROJECT_NAME}_EXPORTED_TARGETS}
-                 ${catkin_EXPORTED_TARGETS})
+add_library(mapf_base SHARED src/mapf_base.cpp)
+ament_target_dependencies(mapf_base ${dependencies})
 
 # mapf_base_node
 add_executable(mapf_base_node src/mapf_base_node.cpp)
-add_dependencies(mapf_base_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
-                 ${catkin_EXPORTED_TARGETS})
 target_link_libraries(mapf_base_node mapf_base)
-set_target_properties(mapf_base_node PROPERTIES OUTPUT_NAME mapf_base)
+ament_target_dependencies(mapf_base_node ${dependencies})
+
+install(
+  TARGETS mapf_base_node
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
 
 # sub goal of each agent | pub goal in mapf form
 add_executable(goal_transformer example/goal_transformer.cpp)
-add_dependencies(goal_transformer ${${PROJECT_NAME}_EXPORTED_TARGETS}
-                 ${catkin_EXPORTED_TARGETS})
-target_link_libraries(goal_transformer ${catkin_LIBRARIES})
+ament_target_dependencies(goal_transformer ${dependencies})
+
+install(
+  TARGETS goal_transformer
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
 # sub plan of mapf result | use move_base client to execute plan
 add_executable(plan_executor example/plan_executor.cpp)
-add_dependencies(plan_executor ${${PROJECT_NAME}_EXPORTED_TARGETS}
-                 ${catkin_EXPORTED_TARGETS})
-target_link_libraries(plan_executor ${catkin_LIBRARIES})
+ament_target_dependencies(plan_executor ${dependencies})
 
-install(TARGETS mapf_base_node DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-
-install(TARGETS mapf_base DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
-
-# Mark cpp header files for installation
 install(
-  DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING
-  PATTERN "*.h")
+  TARGETS plan_executor
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY include/
+  DESTINATION include/
+)
+
+ament_export_include_directories(include)
+ament_export_dependencies(${dependencies})
+ament_package()

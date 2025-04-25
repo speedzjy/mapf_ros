@@ -23,15 +23,16 @@
  * SOFTWARE.
  *
  *********************************************************************/
-#include <pluginlib/class_list_macros.h>
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
+
+#include "pluginlib/class_list_macros.hpp"
 
 #include <tf2/utils.h>
 #include <tf2_ros/transform_listener.h>
 
-#include "mapf_msgs/GlobalPlan.h"
-#include "mapf_msgs/Goal.h"
-#include "mapf_msgs/SinglePlan.h"
+#include "mapf_msgs/msg/global_plan.hpp"
+#include "mapf_msgs/msg/goal.h"
+#include "mapf_msgs/msg/single_plan.h"
 
 // ROS Wrapper for ECBS
 #include "mapf_ros/ecbs/ecbs_ros.hpp"
@@ -43,15 +44,18 @@ namespace mapf {
 
 ECBSROS::ECBSROS() : costmap_(nullptr), initialized_(false) {}
 
-ECBSROS::ECBSROS(std::string name, costmap_2d::Costmap2DROS *costmap_ros)
+ECBSROS::ECBSROS(std::string name, nav2_costmap_2d::Costmap2DROS *costmap_ros)
     : costmap_(nullptr), initialized_(false) {
   initialize(name, costmap_ros);
 }
 
 void ECBSROS::initialize(std::string name,
-                         costmap_2d::Costmap2DROS *costmap_ros) {
+                         nav2_costmap_2d::Costmap2DROS *costmap_ros) {
   if (!initialized_) {
     // ROS_INFO("New ECBS planner.");
+    clock_ = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
+    logger_ = rclcpp::get_logger("ecbs_ros");
+
     ros::NodeHandle nh("~");
     nh.param<double>("ecbs/suboptimality", suboptimality_, 1.0);
 
@@ -66,12 +70,11 @@ void ECBSROS::initialize(std::string name,
 }
 
 void ECBSROS::updateObstacleThread() {
-  ROS_INFO_NAMED("update_obstacle_thread", "Updating obstacle state...");
-  ros::NodeHandle thread_nh;
-  ros::Rate loop_rate(0.5); // update obstacle every 2s
+  RCLCPP_INFO(logger_, "update_obstacle_thread: Updating obstacle state...");
+  rclcpp::WallRate loop_rate(0.5); // update obstacle every 2s
 
   try {
-    while (thread_nh.ok()) {
+    while (rclcpp::ok()) {
       int dimx = costmap_->getSizeInCellsX(),
           dimy = costmap_->getSizeInCellsY();
       const unsigned char *costarr = costmap_->getCharMap();
@@ -85,7 +88,7 @@ void ECBSROS::updateObstacleThread() {
           int offset = 0, num_obs = 0;
           for (int i = 0; i < dimy; ++i) {
             for (int j = 0; j < dimx; ++j) {
-              if (costarr[offset] >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+              if (costarr[offset] >= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
                 obstacles_.insert(Location(j, i));
                 num_obs++;
               }
@@ -100,7 +103,7 @@ void ECBSROS::updateObstacleThread() {
       boost::this_thread::interruption_point();
     }
   } catch (boost::thread_interrupted const &) {
-    ROS_INFO_NAMED("ecbs_planner", "Boost interrupt Exit Obstacle.");
+    RCLCPP_INFO(logger_, "ecbs_planner: Boost interrupt Exit Obstacle.");
   }
 }
 

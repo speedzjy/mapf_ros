@@ -28,6 +28,8 @@
 #ifndef ECBS_ROS_H
 #define ECBS_ROS_H
 
+#include <boost/thread.hpp>
+
 #include "rclcpp/rclcpp.hpp"
 
 #include "nav_msgs/msg/path.hpp"
@@ -49,9 +51,10 @@ public:
   ECBSROS(std::string name, nav2_costmap_2d::Costmap2DROS *costmap_ros);
 
   void initialize(std::string name,
-    nav2_costmap_2d::Costmap2DROS *costmap_ros) override;
+                  nav2_costmap_2d::Costmap2DROS *costmap_ros) override;
 
-  bool makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Path &goal,
+  bool makePlan(const nav_msgs::msg::Path &start,
+                const nav_msgs::msg::Path &goal,
                 mapf_msgs::msg::GlobalPlan &plan, double &cost,
                 const double &time_tolerance) override;
 
@@ -64,8 +67,8 @@ public:
                   double &wy);
 
   void generatePlan(const std::vector<PlanResult<State, Action, int>> &solution,
-                    const nav_msgs::msg::Path &goal, mapf_msgs::msg::GlobalPlan &plan,
-                    double &cost);
+                    const nav_msgs::msg::Path &goal,
+                    mapf_msgs::msg::GlobalPlan &plan, double &cost);
 
   // set the associated location in obstacles to be free
   void clearCell(const unsigned int &mx, const unsigned int &my);
@@ -92,6 +95,12 @@ protected:
   bool initialized_;
 
   double suboptimality_;
+
+  // clock
+  rclcpp::Clock::SharedPtr clock_;
+
+  // Logger
+  rclcpp::Logger logger_{rclcpp::get_logger("ECBSROSPlanner")};
 };
 }; // namespace mapf
 

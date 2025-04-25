@@ -21,8 +21,6 @@ include_directories(
   include
 )
 
-set(library_name mapf_planner)
-
 set(dependencies
   rclcpp
   rclcpp_action
@@ -40,19 +38,22 @@ set(dependencies
   mapf_msgs
 )
 
-add_library(${library_name} SHARED
-  src/cbs_ros.cpp
-  # src/ecbs_ros.cpp
-  # src/prioritized_sipp_ros.cpp
-)
+add_library(cbs_planner_ros SHARED src/cbs_ros.cpp)
+# add_library(ecbs_planner_ros SHARED src/ecbs_ros.cpp)
+add_library(sipp_planner_ros SHARED src/prioritized_sipp_ros.cpp)
 
-ament_target_dependencies(${library_name}
-  ${dependencies}
-)
+ament_target_dependencies(cbs_planner_ros ${dependencies})
+# ament_target_dependencies(ecbs_planner_ros ${dependencies})
+ament_target_dependencies(sipp_planner_ros ${dependencies})
 
-pluginlib_export_plugin_description_file(mapf_ros mapf_planner_plugins.xml)
+pluginlib_export_plugin_description_file(mapf_ros cbs_planner_plugins.xml)
+# pluginlib_export_plugin_description_file(mapf_ros ecbs_planner_plugins.xml)
+pluginlib_export_plugin_description_file(mapf_ros sipp_planner_plugins.xml)
 
-install(TARGETS ${library_name}
+install(TARGETS 
+  cbs_planner_ros 
+  # ecbs_planner_ros 
+  sipp_planner_ros
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -62,11 +63,16 @@ install(DIRECTORY include/
   DESTINATION include/
 )
 
-install(FILES mapf_planner_plugins.xml
+install(FILES 
+  cbs_planner_plugins.xml 
+  # ecbs_planner_plugins.xml 
+  sipp_planner_plugins.xml
   DESTINATION share/${PROJECT_NAME}
 )
 
 ament_export_include_directories(include)
-ament_export_libraries(${library_name})
+ament_export_libraries(cbs_planner_ros)
+# ament_export_libraries(ecbs_planner_ros)
+ament_export_libraries(sipp_planner_ros)
 ament_export_dependencies(${dependencies})
 ament_package()
