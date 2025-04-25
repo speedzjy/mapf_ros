@@ -28,22 +28,24 @@
 #ifndef MAPF_ROS_H
 #define MAPF_ROS_H
 
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 
-#include <costmap_2d/costmap_2d_ros.h>
-#include <nav_msgs/Path.h>
+#include "nav2_costmap_2d/costmap_2d_ros.hpp"
+#include "nav2_util/costmap.hpp"
+#include "nav_msgs/msg/path.hpp"
 
-#include "mapf_msgs/GlobalPlan.h"
+#include "mapf_msgs/msg/global_plan.hpp"
 
 namespace mapf {
 
 class MAPFROS {
 public:
   virtual void initialize(std::string name,
-                          costmap_2d::Costmap2DROS *costmap_ros) = 0;
+                          nav2_costmap_2d::Costmap2DROS *costmap_ros) = 0;
 
-  virtual bool makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
-                        mapf_msgs::GlobalPlan &plan, double &cost,
+  virtual bool makePlan(const nav_msgs::msg::Path &start,
+                        const nav_msgs::msg::Path &goal,
+                        mapf_msgs::msg::GlobalPlan &plan, double &cost,
                         const double &time_tolerance) = 0;
 
   virtual ~MAPFROS() {}

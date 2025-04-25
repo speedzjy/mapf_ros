@@ -28,20 +28,21 @@
 #ifndef MAPF_BASE_H
 #define MAPF_BASE_H
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include <costmap_2d/costmap_2d.h>
 #include <pluginlib/class_loader.h>
 
-#include <std_srvs/Empty.h>
-#include <std_srvs/SetBool.h>
+#include <std_srvs/srv/empty.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 
 #include <tf2/utils.h>
 #include <tf2_ros/transform_listener.h>
 
-#include "mapf_msgs/GlobalPlan.h"
-#include "mapf_msgs/Goal.h"
-#include "mapf_msgs/SinglePlan.h"
+#include "mapf_msgs/msg/goal.h"
+#include "mapf_msgs/msg/single_plan.h"
+#include "mapf_msgs/msg/global_plan.h"
+
 #include "mapf_ros/cbs/cbs_ros.hpp"
 
 namespace mapf {

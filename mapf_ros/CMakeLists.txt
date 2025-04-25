@@ -1,83 +1,72 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(mapf_ros)
 
-# Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++14)
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(nav2_util REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(nav2_costmap_2d REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(pluginlib REQUIRED)
+find_package(mapf_msgs REQUIRED)
 
-# Find catkin macros and libraries if COMPONENTS list like find_package(catkin
-# REQUIRED COMPONENTS xyz) is used, also find other catkin packages
-find_package(
-  catkin REQUIRED
-  COMPONENTS roscpp
-             rospy
-             std_msgs
-             nav_msgs
-             geometry_msgs
-             sensor_msgs
-             mapf_msgs
-             costmap_2d
-             tf2_geometry_msgs
-             tf2_ros
-             move_base_msgs
-             actionlib
-             roslib
-             pluginlib)
-
-catkin_package(
-  INCLUDE_DIRS
+include_directories(
   include
-  LIBRARIES
-  cbs_planner_ros
-  ecbs_planner_ros
-  sipp_planner_ros
-  CATKIN_DEPENDS
-  geometry_msgs
-  roscpp
-  rospy
-  sensor_msgs
+)
+
+set(library_name mapf_planner)
+
+set(dependencies
+  rclcpp
+  rclcpp_action
+  rclcpp_lifecycle
   std_msgs
   nav_msgs
-  mapf_msgs
-  costmap_2d
-  tf2_geometry_msgs
+  sensor_msgs
+  geometry_msgs
+  visualization_msgs
+  nav2_util
   tf2_ros
-  move_base_msgs
-  actionlib
-  roslib
-  pluginlib)
+  nav2_costmap_2d
+  builtin_interfaces
+  pluginlib
+  mapf_msgs
+)
 
-include_directories(include ${catkin_INCLUDE_DIRS})
+add_library(${library_name} SHARED
+  src/cbs_ros.cpp
+  # src/ecbs_ros.cpp
+  # src/prioritized_sipp_ros.cpp
+)
 
-# cbs
-add_library(cbs_planner_ros src/cbs_ros.cpp)
-add_dependencies(cbs_planner_ros ${${PROJECT_NAME}_EXPORTED_TARGETS}
-                 ${catkin_EXPORTED_TARGETS})
-target_link_libraries(cbs_planner_ros ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+ament_target_dependencies(${library_name}
+  ${dependencies}
+)
 
-# ecbs
-add_library(ecbs_planner_ros src/ecbs_ros.cpp)
-add_dependencies(ecbs_planner_ros ${${PROJECT_NAME}_EXPORTED_TARGETS}
-                 ${catkin_EXPORTED_TARGETS})
-target_link_libraries(ecbs_planner_ros ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+pluginlib_export_plugin_description_file(mapf_ros mapf_planner_plugins.xml)
 
-# sipp
-add_library(sipp_planner_ros src/prioritized_sipp_ros.cpp)
-add_dependencies(sipp_planner_ros ${${PROJECT_NAME}_EXPORTED_TARGETS}
-                 ${catkin_EXPORTED_TARGETS})
-target_link_libraries(sipp_planner_ros ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+install(TARGETS ${library_name}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
 
-install(
-  TARGETS cbs_planner_ros ecbs_planner_ros sipp_planner_ros
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
+install(DIRECTORY include/
+  DESTINATION include/
+)
 
-install(FILES cbs_plugins.xml ecbs_plugins.xml sipp_plugins.xml
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(FILES mapf_planner_plugins.xml
+  DESTINATION share/${PROJECT_NAME}
+)
 
-# Mark cpp header files for installation
-install(
-  DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING
-  PATTERN "*.h")
+ament_export_include_directories(include)
+ament_export_libraries(${library_name})
+ament_export_dependencies(${dependencies})
+ament_package()

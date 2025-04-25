@@ -28,11 +28,14 @@
 #ifndef CBS_ROS_H
 #define CBS_ROS_H
 
-#include <ros/ros.h>
+#include <boost/thread.hpp>
 
-#include <costmap_2d/costmap_2d.h>
-#include <costmap_2d/costmap_2d_ros.h>
-#include <nav_msgs/Path.h>
+#include "rclcpp/rclcpp.hpp"
+
+#include "nav_msgs/msg/path.hpp"
+
+#include "nav2_costmap_2d/costmap_2d.hpp"
+#include "nav2_costmap_2d/costmap_2d_ros.hpp"
 
 #include "../utils/timer.hpp"
 #include "cbs.hpp"
@@ -45,13 +48,14 @@ class CBSROS : public mapf::MAPFROS {
 public:
   CBSROS();
 
-  CBSROS(std::string name, costmap_2d::Costmap2DROS *costmap_ros);
+  CBSROS(std::string name, nav2_costmap_2d::Costmap2DROS *costmap_ros);
 
   void initialize(std::string name,
-                  costmap_2d::Costmap2DROS *costmap_ros) override;
+                  nav2_costmap_2d::Costmap2DROS *costmap_ros) override;
 
-  bool makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
-                mapf_msgs::GlobalPlan &plan, double &cost,
+  bool makePlan(const nav_msgs::msg::Path &start,
+                const nav_msgs::msg::Path &goal,
+                mapf_msgs::msg::GlobalPlan &plan, double &cost,
                 const double &time_tolerance) override;
 
   // Update global obstacle thread
@@ -63,8 +67,8 @@ public:
                   double &wy);
 
   void generatePlan(const std::vector<PlanResult<State, Action, int>> &solution,
-                    const nav_msgs::Path &goal, mapf_msgs::GlobalPlan &plan,
-                    double &cost);
+                    const nav_msgs::msg::Path &goal,
+                    mapf_msgs::msg::GlobalPlan &plan, double &cost);
 
   // set the associated location in obstacles to be free
   void clearCell(const unsigned int &mx, const unsigned int &my);
@@ -79,7 +83,7 @@ public:
 protected:
   std::mutex mtx_obs_update_;
 
-  costmap_2d::Costmap2D *costmap_;
+  nav2_costmap_2d::Costmap2D *costmap_;
   std::string global_frame_;
 
   // Update global obstacle thread
@@ -89,6 +93,12 @@ protected:
   std::unordered_set<Location> obstacles_;
 
   bool initialized_;
+
+  // clock
+  rclcpp::Clock::SharedPtr clock_;
+
+  // Logger
+  rclcpp::Logger logger_{rclcpp::get_logger("CBSROSPlanner")};
 };
 }; // namespace mapf
 

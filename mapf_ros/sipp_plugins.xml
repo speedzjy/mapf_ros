@@ -1,7 +1,0 @@
-<library path="lib/libsipp_planner_ros">
-  <class name="mapf_planner/SIPPROS" type="mapf::SIPPROS" base_class_type="mapf::MAPFROS">
-    <description>
-      A implementation of sipp planner.
-    </description>
-  </class>
-</library>
