@@ -19,6 +19,8 @@ find_package(pluginlib REQUIRED)
 find_package(mapf_msgs REQUIRED)
 find_package(mapf_ros REQUIRED)
 
+find_package(Boost REQUIRED COMPONENTS thread)
+
 include_directories(include)
 
 set(dependencies
@@ -43,12 +45,12 @@ set(dependencies
 # mapf_base
 add_library(mapf_base SHARED src/mapf_base.cpp)
 ament_target_dependencies(mapf_base ${dependencies})
+target_link_libraries(mapf_base Boost::thread)
 
 # mapf_base_node
 add_executable(mapf_base_node src/mapf_base_node.cpp)
 target_link_libraries(mapf_base_node mapf_base)
 ament_target_dependencies(mapf_base_node ${dependencies})
-
 install(
   TARGETS mapf_base_node
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -58,23 +60,27 @@ install(
 # sub goal of each agent | pub goal in mapf form
 add_executable(goal_transformer example/goal_transformer.cpp)
 ament_target_dependencies(goal_transformer ${dependencies})
-
 install(
   TARGETS goal_transformer
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
 # sub plan of mapf result | use move_base client to execute plan
-add_executable(plan_executor example/plan_executor.cpp)
-ament_target_dependencies(plan_executor ${dependencies})
-
-install(
-  TARGETS plan_executor
-  RUNTIME DESTINATION lib/${PROJECT_NAME}
-)
+# add_executable(plan_executor example/plan_executor.cpp)
+# ament_target_dependencies(plan_executor ${dependencies})
+# install(
+#   TARGETS plan_executor
+#   RUNTIME DESTINATION lib/${PROJECT_NAME}
+# )
 
 install(DIRECTORY include/
   DESTINATION include/
+)
+
+# others
+install(
+  DIRECTORY params launch
+  DESTINATION share/${PROJECT_NAME}
 )
 
 ament_export_include_directories(include)

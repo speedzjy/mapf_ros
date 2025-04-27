@@ -28,26 +28,26 @@
 #include <mutex>
 #include <vector>
 
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 
-#include <geometry_msgs/PoseStamped.h>
-#include <nav_msgs/Path.h>
-#include <std_msgs/Bool.h>
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "nav_msgs/msg/path.hpp"
+#include "std_msgs/msg/bool.hpp"
 
-#include <mapf_msgs/Goal.h>
+#include "mapf_msgs/msg/goal.hpp"
 
-class GoalTransformer {
+class GoalTransformer : public rclcpp::Node {
 private:
-  ros::NodeHandle nh_;
-  ros::Subscriber sub_mapf_goal_init_;
-  ros::V_Subscriber goal_sub_arr_;
-  ros::Publisher pub_mapf_goal_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_mapf_goal_init_;
+  rclcpp::Publisher<mapf_msgs::msg::Goal>::SharedPtr pub_mapf_goal_;
+  std::vector<rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr>
+      goal_sub_arr_;
 
   // mapf params
   int agent_num_;
   std::vector<std::string> goal_topic_;
 
-  mapf_msgs::Goal goal_arr_;
+  mapf_msgs::msg::Goal goal_arr_;
 
   std::mutex goal_mtx;
 
@@ -55,61 +55,69 @@ public:
   GoalTransformer();
   ~GoalTransformer();
 
-  void goalCallback(const geometry_msgs::PoseStamped::ConstPtr &goal,
-                    geometry_msgs::PoseStamped &goal_pose);
+  void goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr goal,
+                    geometry_msgs::msg::PoseStamped &goal_pose);
 
-  void goalInitCallback(const std_msgs::Bool::ConstPtr &init);
+  void goalInitCallback(const std_msgs::msg::Bool::SharedPtr init);
 }; // class GoalTransformer
 
-GoalTransformer::GoalTransformer() {
-  nh_.param<int>("agent_num", agent_num_, 1);
+GoalTransformer::GoalTransformer() : Node("goal_transformer_node") {
+  this->declare_parameter<int>("agent_num", 1);
+  this->get_parameter("agent_num", agent_num_);
+
   goal_sub_arr_.resize(agent_num_);
   goal_topic_.resize(agent_num_);
   goal_arr_.goal.poses.resize(agent_num_);
 
   // subscribe goal topic
   for (int i = 0; i < agent_num_; ++i) {
-    nh_.param<std::string>("goal_topic/agent_" + std::to_string(i),
-                           goal_topic_[i], "goal");
-    geometry_msgs::PoseStamped &pose_i = goal_arr_.goal.poses[i];
-    goal_sub_arr_[i] = nh_.subscribe<geometry_msgs::PoseStamped>(
-        goal_topic_[i], 5,
-        [this, &pose_i](const geometry_msgs::PoseStamped::ConstPtr &msg) {
-          goalCallback(msg, pose_i);
-        });
+    std::string goal_topic_param = "goal_topic/agent_" + std::to_string(i);
+    this->declare_parameter<std::string>(goal_topic_param, "goal");
+    this->get_parameter(goal_topic_param, goal_topic_[i]);
+
+    geometry_msgs::msg::PoseStamped &pose_i = goal_arr_.goal.poses[i];
+    goal_sub_arr_[i] =
+        this->create_subscription<geometry_msgs::msg::PoseStamped>(
+            goal_topic_[i], 5,
+            [this,
+             &pose_i](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+              goalCallback(msg, pose_i);
+            });
   }
 
   // subscribe goal init flag
-  sub_mapf_goal_init_ = nh_.subscribe<std_msgs::Bool>(
-      "goal_init_flag", 1, &GoalTransformer::goalInitCallback, this);
+  sub_mapf_goal_init_ = this->create_subscription<std_msgs::msg::Bool>(
+      "goal_init_flag", 1,
+      std::bind(&GoalTransformer::goalInitCallback, this,
+                std::placeholders::_1));
   // pub goal in mapf form
-  pub_mapf_goal_ = nh_.advertise<mapf_msgs::Goal>("mapf_goal", 1);
+  pub_mapf_goal_ = this->create_publisher<mapf_msgs::msg::Goal>("mapf_goal", 1);
 }
 
 GoalTransformer::~GoalTransformer() {}
 
 void GoalTransformer::goalCallback(
-    const geometry_msgs::PoseStamped::ConstPtr &goal,
-    geometry_msgs::PoseStamped &goal_pose) {
+    const geometry_msgs::msg::PoseStamped::SharedPtr goal,
+    geometry_msgs::msg::PoseStamped &goal_pose) {
   std::lock_guard<std::mutex> lock(goal_mtx);
   goal_pose = *goal;
 }
 
-void GoalTransformer::goalInitCallback(const std_msgs::Bool::ConstPtr &init) {
+void GoalTransformer::goalInitCallback(
+    const std_msgs::msg::Bool::SharedPtr init) {
   if (init->data) {
-    goal_arr_.header.stamp = ros::Time::now();
+    goal_arr_.header.stamp = this->get_clock()->now();
     goal_arr_.initial = true;
-    pub_mapf_goal_.publish(goal_arr_);
+    pub_mapf_goal_->publish(goal_arr_);
   }
 }
 
 int main(int argc, char *argv[]) {
-  ros::init(argc, argv, "goal_transformer_node");
-
-  GoalTransformer gt;
-
-  ros::MultiThreadedSpinner spinner(2);
-  spinner.spin();
-
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<GoalTransformer>();
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
+  rclcpp::shutdown();
   return 0;
 }

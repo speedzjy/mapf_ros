@@ -26,25 +26,30 @@
 #include "mapf_base/mapf_base.hpp"
 
 namespace mapf {
-MAPFBase::MAPFBase(tf2_ros::Buffer &tf)
-    : tf_(tf), costmap_ros_(NULL), nh_("~"),
+MAPFBase::MAPFBase()
+    : Node("mapf_base_node"), costmap_ros_(NULL),
       mapf_loader_("mapf_ros", "mapf::MAPFROS"), receive_mapf_goal_(false),
       run_mapf_(false) {
+
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+  tf_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
   getParam();
 
   pub_gui_plan_.resize(agent_num_);
   for (int i = 0; i < agent_num_; ++i) {
-    pub_gui_plan_[i] = nh_.advertise<nav_msgs::Path>(plan_topic_[i], 1);
+    pub_gui_plan_[i] =
+        this->create_publisher<nav_msgs::msg::Path>(plan_topic_[i], 1);
   }
 
   // goal in mapf form
-  sub_mapf_goal_ = nh_.subscribe<mapf_msgs::Goal>(
-      "mapf_goal", 1, &MAPFBase::goalCallback, this);
+  sub_mapf_goal_ = this->create_subscription<mapf_msgs::msg::Goal>(
+      "mapf_goal", 1,
+      std::bind(&MAPFBase::goalCallback, this, std::placeholders::_1));
   pub_mapf_global_plan_ =
-      nh_.advertise<mapf_msgs::GlobalPlan>("global_plan", 1);
+      this->create_publisher<mapf_msgs::msg::GlobalPlan>("global_plan", 1);
 
-  costmap_ros_ = new costmap_2d::Costmap2DROS("global_costmap", tf_);
+  costmap_ros_ = new nav2_costmap_2d::Costmap2DROS("global_costmap");
   costmap_ros_->pause();
 
   do_mapf_thread_ =
@@ -54,12 +59,14 @@ MAPFBase::MAPFBase(tf2_ros::Buffer &tf)
 
   // create a local planner
   try {
-    mapf_planner_ = mapf_loader_.createInstance(planner_name_);
-    ROS_INFO("Created local_planner %s", planner_name_.c_str());
+    mapf_planner_ = mapf_loader_.createUniqueInstance(planner_name_);
+    RCLCPP_INFO(this->get_logger(), "Created local_planner %s",
+                planner_name_.c_str());
     mapf_planner_->initialize(mapf_loader_.getName(planner_name_),
                               costmap_ros_);
   } catch (const pluginlib::PluginlibException &ex) {
-    ROS_FATAL(
+    RCLCPP_FATAL(
+        this->get_logger(),
         "Failed to create the %s planner, are you sure it is properly "
         "registered and that the containing library is built? Exception: %s",
         planner_name_.c_str(), ex.what());
@@ -87,54 +94,66 @@ MAPFBase::~MAPFBase() {
 }
 
 void MAPFBase::getParam() {
-  nh_.param<std::string>("mapf_planner", planner_name_, "mapf_planner/CBSROS");
+  this->declare_parameter<std::string>("mapf_planner", "mapf_planner/CBSROS");
+  this->get_parameter("mapf_planner", planner_name_);
 
-  nh_.param<double>("planner_time_tolerance", planner_time_tolerance_, DBL_MAX);
-  nh_.param<double>("goal_tolerance", goal_tolerance_, 1.0);
-  nh_.param<std::string>("global_frame_id", global_frame_id_, "map");
-  nh_.param<int>("agent_num", agent_num_, 1);
+  this->declare_parameter<double>("planner_time_tolerance", DBL_MAX);
+  this->get_parameter("planner_time_tolerance", planner_time_tolerance_);
+
+  this->declare_parameter<double>("goal_tolerance", 1.0);
+  this->get_parameter("goal_tolerance", goal_tolerance_);
+
+  this->declare_parameter<std::string>("global_frame_id", "map");
+  this->get_parameter("global_frame_id", global_frame_id_);
+
+  this->declare_parameter<int>("agent_num", 1);
+  this->get_parameter("agent_num", agent_num_);
 
   base_frame_id_.resize(agent_num_);
   plan_topic_.resize(agent_num_);
 
   for (int i = 0; i < agent_num_; ++i) {
-    nh_.param<std::string>("base_frame_id/agent_" + std::to_string(i),
-                           base_frame_id_[i], "base_link");
-    nh_.param<std::string>("plan_topic/agent_" + std::to_string(i),
-                           plan_topic_[i], "plan");
+    std::string base_frame_param = "base_frame_id/agent_" + std::to_string(i);
+    std::string plan_topic_param = "plan_topic/agent_" + std::to_string(i);
+
+    this->declare_parameter<std::string>(base_frame_param, "base_link");
+    this->get_parameter(base_frame_param, base_frame_id_[i]);
+
+    this->declare_parameter<std::string>(plan_topic_param, "plan");
+    this->get_parameter(plan_topic_param, plan_topic_[i]);
   }
 }
 
-void MAPFBase::goalCallback(const mapf_msgs::Goal::ConstPtr &goal) {
+void MAPFBase::goalCallback(const mapf_msgs::msg::Goal::SharedPtr goal) {
   std::lock_guard<std::mutex> lock(mtx_mapf_goal_);
   goal_ros_ = goal->goal;
   goal_ros_.header.frame_id = global_frame_id_;
-  goal_ros_.header.stamp = ros::Time::now();
+  goal_ros_.header.stamp = this->get_clock()->now();
   receive_mapf_goal_ = true;
 }
 
-nav_msgs::Path MAPFBase::getRobotPose() {
-  nav_msgs::Path start;
+nav_msgs::msg::Path MAPFBase::getRobotPose() {
+  nav_msgs::msg::Path start;
   start.header.frame_id = global_frame_id_;
-  start.header.stamp = ros::Time::now();
+  start.header.stamp = this->get_clock()->now();
   start.poses.clear();
   start.poses.resize(agent_num_);
 
   for (int i = 0; i < agent_num_; ++i) {
     // get tf
     tf2::toMsg(tf2::Transform::getIdentity(), start.poses[i].pose);
-    geometry_msgs::PoseStamped robot_pose;
+    geometry_msgs::msg::PoseStamped robot_pose;
     tf2::toMsg(tf2::Transform::getIdentity(), robot_pose.pose);
     robot_pose.header.frame_id = base_frame_id_[i];
-    robot_pose.header.stamp = ros::Time();
-    tf_.transform(robot_pose, start.poses[i], global_frame_id_);
+    robot_pose.header.stamp = this->get_clock()->now();
+    tf_buffer_->transform(robot_pose, robot_pose, global_frame_id_);
   }
   return start;
 }
 
 bool MAPFBase::reachGoal() {
   bool reach = true;
-  nav_msgs::Path start = getRobotPose();
+  nav_msgs::msg::Path start = getRobotPose();
   for (int i = 0; i < start.poses.size(); ++i) {
     double diff_x = start.poses[i].pose.position.x -
                     goal_ros_.poses[i].pose.position.x,
@@ -146,12 +165,11 @@ bool MAPFBase::reachGoal() {
 }
 
 void MAPFBase::stateMachine() {
-  ROS_INFO_NAMED("MAPF state machine", "MAPF state machine Thread...");
-  ros::NodeHandle thread_nh;
-  ros::Rate loop_rate(5);
+  RCLCPP_INFO(this->get_logger(), "MAPF state machine Thread...");
+  rclcpp::WallRate loop_rate(5);
 
   try {
-    while (thread_nh.ok()) {
+    while (rclcpp::ok()) {
       std::unique_lock<std::mutex> lock(mtx_mapf_goal_);
       std::unique_lock<std::mutex> lock_planner(mtx_planner_);
 
@@ -172,24 +190,24 @@ void MAPFBase::stateMachine() {
       boost::this_thread::interruption_point();
     } // end while
   } catch (...) {
-    ROS_INFO("Exit State Machine thread.");
+    RCLCPP_INFO(this->get_logger(), "Exit State Machine thread.");
   }
 }
 
 void MAPFBase::doMAPFThread() {
-  ROS_INFO_NAMED("MAPF thread", "Start active mapf algorithm...");
-  ros::NodeHandle thread_nh;
-  ros::Rate loop_rate(10);
+  RCLCPP_INFO(this->get_logger(),
+              "MAPF thread: Start active mapf algorithm...");
+  rclcpp::WallRate loop_rate(10);
 
   try {
-    while (thread_nh.ok()) {
+    while (rclcpp::ok()) {
       std::unique_lock<std::mutex> lock_planner(mtx_planner_);
       bool run_mapf = run_mapf_;
       lock_planner.unlock();
       if (run_mapf) {
-        nav_msgs::Path start_ros = getRobotPose();
+        nav_msgs::msg::Path start_ros = getRobotPose();
         double cost = 0;
-        mapf_msgs::GlobalPlan plan;
+        mapf_msgs::msg::GlobalPlan plan;
         if (mapf_planner_->makePlan(start_ros, goal_ros_, plan, cost,
                                     planner_time_tolerance_)) {
           publishPlan(plan);
@@ -199,15 +217,15 @@ void MAPFBase::doMAPFThread() {
       boost::this_thread::interruption_point();
     } // end while
   } catch (...) {
-    ROS_INFO("Exit Do mapf thread.");
+    RCLCPP_INFO(this->get_logger(), "Exit Do mapf thread.");
   }
 }
 
-void MAPFBase::publishPlan(const mapf_msgs::GlobalPlan &plan) {
+void MAPFBase::publishPlan(const mapf_msgs::msg::GlobalPlan &plan) {
   for (size_t i = 0; i < plan.global_plan.size(); ++i) {
-    pub_gui_plan_[i].publish(plan.global_plan[i].plan);
+    pub_gui_plan_[i]->publish(plan.global_plan[i].plan);
   }
-  pub_mapf_global_plan_.publish(plan);
+  pub_mapf_global_plan_->publish(plan);
 }
 
 } // namespace mapf

@@ -23,19 +23,17 @@
  * SOFTWARE.
  *
  *********************************************************************/
-#include <ros/ros.h>
-#include <tf2_ros/transform_listener.h>
+#include "rclcpp/rclcpp.hpp"
+#include "tf2_ros/transform_listener.h"
 
 #include "mapf_base/mapf_base.hpp"
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "mapf_base_node");
-
-  tf2_ros::Buffer buffer(ros::Duration(10));
-  tf2_ros::TransformListener tf(buffer);
-  mapf::MAPFBase mapf_base(buffer);
-
-  ros::MultiThreadedSpinner spinner(1);
-  spinner.spin();
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<mapf::MAPFBase>();
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
+  rclcpp::shutdown();
   return 0;
 }
