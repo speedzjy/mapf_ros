@@ -30,27 +30,25 @@
 
 #include <mutex>
 
-#include "ros/package.h"
-#include "ros/ros.h"
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 
-#include "geometry_msgs/PoseStamped.h"
-#include "geometry_msgs/Twist.h"
+#include "geometry_msgs/msg/pose_stamped.h"
+#include "geometry_msgs/msg/twist.h"
+#include "std_msgs/msg/bool.h"
 
-#include "std_msgs/Bool.h"
 #include "tf/tf.h"
 
 #include "actionlib/client/simple_action_client.h"
 #include "move_base_msgs/MoveBaseAction.h"
 
-#include "mapf_msgs/GlobalPlan.h"
-#include "mapf_msgs/SinglePlan.h"
+#include "mapf_msgs/msg/global_plan.h"
+#include "mapf_msgs/msg/single_plan.h"
 
 #include "mapf_ros/utils/utility.hpp"
 
-class ParamServer {
+class ParamServer : public rclcpp::Node {
 public:
-  ros::NodeHandle ps_nh_;
-
   int agent_num_;
   std::vector<std::string> agent_name_;
 
@@ -58,21 +56,31 @@ public:
   std::vector<std::string> base_frame_id_;
   std::vector<std::string> plan_topic_;
 
-  ParamServer() {
-    ps_nh_.param<int>("agent_num", agent_num_, 1);
-    ps_nh_.param<std::string>("global_frame_id", global_frame_id_, "map");
+  ParamServer(const std::string &node_name) : Node(node_name) {
+    this->declare_parameter<int>("agent_num", 1);
+    this->declare_parameter<std::string>("global_frame_id", "map");
+
+    this->get_parameter("agent_num", agent_num_);
+    this->get_parameter("global_frame_id", global_frame_id_);
 
     agent_name_.resize(agent_num_);
     base_frame_id_.resize(agent_num_);
     plan_topic_.resize(agent_num_);
 
     for (int i = 0; i < agent_num_; ++i) {
-      ps_nh_.param<std::string>("base_frame_id/agent_" + std::to_string(i),
-                                base_frame_id_[i], "base_link");
-      ps_nh_.param<std::string>("plan_topic/agent_" + std::to_string(i),
-                                plan_topic_[i], "plan");
-      ps_nh_.param<std::string>("agent_name/agent_" + std::to_string(i),
-                                agent_name_[i], "agent_name_0");
+      this->declare_parameter<std::string>(
+          "base_frame_id/agent_" + std::to_string(i), "base_link");
+      this->declare_parameter<std::string>(
+          "plan_topic/agent_" + std::to_string(i), "plan");
+      this->declare_parameter<std::string>(
+          "agent_name/agent_" + std::to_string(i), "agent_name_0");
+
+      this->get_parameter("base_frame_id/agent_" + std::to_string(i),
+                          base_frame_id_[i]);
+      this->get_parameter("plan_topic/agent_" + std::to_string(i),
+                          plan_topic_[i]);
+      this->get_parameter("agent_name/agent_" + std::to_string(i),
+                          agent_name_[i]);
     }
   }
 };
@@ -81,11 +89,10 @@ class PlanExecutor : public ParamServer {
 private:
   std::mutex plan_mtx_;
 
-  ros::NodeHandle nh_;
-  ros::Subscriber sub_mapf_plan_;
+  rclcpp::Subscription<mapf_msgs::msg::GlobalPlan>::SharedPtr sub_mapf_plan_;
 
   int make_span_;
-  std::vector<mapf_msgs::SinglePlan> plan_arr_;
+  std::vector<mapf_msgs::msg::SinglePlan> plan_arr_;
 
   bool get_plan_;
 
@@ -98,7 +105,7 @@ private:
 
 public:
   PlanExecutor()
-      : ParamServer(), make_span_(0), get_plan_(false),
+      : ParamServer("plan_executor_node"), make_span_(0), get_plan_(false),
         ac_ptr_arr_(agent_num_, nullptr) {
 
     plan_arr_.resize(agent_num_);
@@ -182,7 +189,7 @@ public:
               }
             }
           } // end for
-        }   // end loop time step
+        } // end loop time step
       }
     } // end while
   }
@@ -242,12 +249,14 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-  ros::init(argc, argv, "plan_executor_node");
+  rclcpp::init(argc, argv);
 
-  PlanExecutor PE;
+  auto node = std::make_shared<PlanExecutor>();
 
-  ros::MultiThreadedSpinner spinner(2);
-  spinner.spin();
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
 
+  rclcpp::shutdown();
   return 0;
 }
