@@ -166,7 +166,7 @@ bool MAPFBase::reachGoal() {
 
 void MAPFBase::stateMachine() {
   RCLCPP_INFO(this->get_logger(), "MAPF state machine Thread...");
-  rclcpp::WallRate loop_rate(5);
+  rclcpp::Rate loop_rate(5);
 
   try {
     while (rclcpp::ok()) {
@@ -197,7 +197,7 @@ void MAPFBase::stateMachine() {
 void MAPFBase::doMAPFThread() {
   RCLCPP_INFO(this->get_logger(),
               "MAPF thread: Start active mapf algorithm...");
-  rclcpp::WallRate loop_rate(10);
+  rclcpp::Rate loop_rate(10);
 
   try {
     while (rclcpp::ok()) {

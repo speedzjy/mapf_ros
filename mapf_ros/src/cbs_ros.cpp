@@ -68,7 +68,7 @@ void CBSROS::initialize(std::string name,
 
 void CBSROS::updateObstacleThread() {
   RCLCPP_INFO(logger_, "update_obstacle_thread: Updating obstacle state...");
-  rclcpp::WallRate loop_rate(0.5); // update obstacle every 2s
+  rclcpp::Rate loop_rate(0.5); // update obstacle every 2s
 
   try {
     while (rclcpp::ok()) {

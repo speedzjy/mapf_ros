@@ -28,6 +28,8 @@
 #include <string>
 #include <vector>
 
+#include <boost/thread.hpp>
+
 #include <mutex>
 
 #include "rclcpp/rclcpp.hpp"
@@ -37,13 +39,10 @@
 #include "geometry_msgs/msg/twist.h"
 #include "std_msgs/msg/bool.h"
 
-#include "tf/tf.h"
+#include "nav2_msgs/action/navigate_to_pose.hpp"
 
-#include "actionlib/client/simple_action_client.h"
-#include "move_base_msgs/MoveBaseAction.h"
-
-#include "mapf_msgs/msg/global_plan.h"
-#include "mapf_msgs/msg/single_plan.h"
+#include "mapf_msgs/msg/global_plan.hpp"
+#include "mapf_msgs/msg/single_plan.hpp"
 
 #include "mapf_ros/utils/utility.hpp"
 
@@ -68,19 +67,13 @@ public:
     plan_topic_.resize(agent_num_);
 
     for (int i = 0; i < agent_num_; ++i) {
-      this->declare_parameter<std::string>(
-          "base_frame_id/agent_" + std::to_string(i), "base_link");
-      this->declare_parameter<std::string>(
-          "plan_topic/agent_" + std::to_string(i), "plan");
-      this->declare_parameter<std::string>(
-          "agent_name/agent_" + std::to_string(i), "agent_name_0");
+      this->declare_parameter<std::string>("base_frame_id/agent_" + std::to_string(i), "base_link");
+      this->declare_parameter<std::string>("plan_topic/agent_" + std::to_string(i), "plan");
+      this->declare_parameter<std::string>("agent_name/agent_" + std::to_string(i), "agent_name_0");
 
-      this->get_parameter("base_frame_id/agent_" + std::to_string(i),
-                          base_frame_id_[i]);
-      this->get_parameter("plan_topic/agent_" + std::to_string(i),
-                          plan_topic_[i]);
-      this->get_parameter("agent_name/agent_" + std::to_string(i),
-                          agent_name_[i]);
+      this->get_parameter("base_frame_id/agent_" + std::to_string(i), base_frame_id_[i]);
+      this->get_parameter("plan_topic/agent_" + std::to_string(i), plan_topic_[i]);
+      this->get_parameter("agent_name/agent_" + std::to_string(i), agent_name_[i]);
     }
   }
 };
@@ -98,10 +91,8 @@ private:
 
   boost::thread *planner_thread_;
 
-  typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>
-      MoveBaseActionClient;
-  typedef std::shared_ptr<MoveBaseActionClient> MoveBaseActionClientPtr;
-  std::vector<MoveBaseActionClientPtr> ac_ptr_arr_;
+  typedef rclcpp_action::Client<nav2_msgs::action::NavigateToPose> Nav2ActionClient;
+  std::vector<Nav2ActionClient::SharedPtr> ac_ptr_arr_;
 
 public:
   PlanExecutor()
@@ -111,26 +102,29 @@ public:
     plan_arr_.resize(agent_num_);
     ac_ptr_arr_.resize(agent_num_);
 
-    ros::NodeHandle pub_nh("/");
     for (int i = 0; i < agent_num_; ++i) {
-      ac_ptr_arr_[i] = std::make_shared<MoveBaseActionClient>(
-          "/" + agent_name_[i] + "/move_base", true);
+      ac_ptr_arr_[i] =
+          std::make_shared<Nav2ActionClient>("/" + agent_name_[i] + "/navigate_to_pose", true);
     }
 
-    sub_mapf_plan_ = nh_.subscribe<mapf_msgs::GlobalPlan>(
-        "global_plan", 1, &PlanExecutor::planCallback, this);
+    sub_mapf_plan_ = this->create_subscription<mapf_msgs::msg::GlobalPlan>(
+        "global_plan", 1, std::bind(&PlanExecutor::planCallback, this, std::placeholders::_1));
 
-    planner_thread_ =
-        new boost::thread(boost::bind(&PlanExecutor::mbStateThread, this));
+    planner_thread_ = new boost::thread(boost::bind(&PlanExecutor::mbStateThread, this));
   }
 
   ~PlanExecutor() {}
 
   void mbStateThread() {
-    ROS_INFO_NAMED("mapf_plan_thread", "Plan and Read move base state...");
-    ros::NodeHandle n;
-    ros::Rate loop_rate(10);
-    while (n.ok()) {
+    RCLCPP_INFO(this->get_logger(), "mapf_plan_thread: Plan and Read move base state...");
+    rclcpp::Rate loop_rate(10);
+
+    typedef std::shared_future<
+        std::shared_ptr<rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>>>
+        Nav2GoalHandle;
+    std::vector<Nav2GoalHandle> send_goal_future(agent_num_);
+
+    while (rclcpp::ok()) {
       loop_rate.sleep();
       if (get_plan_) {
         std::unique_lock<std::mutex> lock(plan_mtx_);
@@ -144,8 +138,8 @@ public:
             // For each agent, if the current time step is less than the total
             // time step, execute move_base
             if (i < plan_arr_[j].time_step.size()) {
-              ac_ptr_arr_[j]->sendGoal(
-                  getMBGoalFromGeoPose(plan_arr_[j].plan.poses[i]));
+              auto goal_msg = getMBGoalFromGeoPose(plan_arr_[j].plan.poses[i]);
+              send_goal_future[j] = ac_ptr_arr_[j]->async_send_goal(goal_msg);
             }
           } // end for
 
@@ -155,10 +149,11 @@ public:
           lock.lock();
           // exit this cycle, ececute new plan
           if (get_plan_) {
-            ROS_INFO(YELLOW "Plan changed, execute new plan.." NONE);
+            RCLCPP_INFO(this->get_logger(), "Plan changed, execute new plan.." NONE);
             for (int j = 0; j < plan_arr_.size(); ++j) {
               if (i < plan_arr_[j].time_step.size()) {
-                ac_ptr_arr_[j]->cancelGoal();
+                auto result = send_goal_future[j].get();
+                ac_ptr_arr_[j]->async_cancel_goal();
               }
             } // end for
             break;
@@ -167,8 +162,7 @@ public:
           // wait for reach step goal
           for (int j = 0; j < plan_arr_.size(); ++j) {
             if (i < plan_arr_[j].time_step.size()) {
-              while (ac_ptr_arr_[j]->getState() !=
-                     actionlib::SimpleClientGoalState::SUCCEEDED) {
+              while (ac_ptr_arr_[j]->getState() != actionlib::SimpleClientGoalState::SUCCEEDED) {
                 // check if get new plan
                 lock.unlock();
                 loop_rate.sleep();
@@ -181,9 +175,7 @@ public:
                 ac_ptr_arr_[j]->waitForResult(ros::Duration(1, 0));
               }
               if (i == plan_arr_[j].time_step.size() - 1) {
-                ROS_INFO("Agent %d reached %dth step goal(" GREEN "END" NONE
-                         ")!",
-                         j, i);
+                ROS_INFO("Agent %d reached %dth step goal(" GREEN "END" NONE ")!", j, i);
               } else {
                 ROS_INFO("Agent %d reached %dth step goal!", j, i);
               }
@@ -194,7 +186,7 @@ public:
     } // end while
   }
 
-  void planCallback(const mapf_msgs::GlobalPlan::ConstPtr &mapf_global_plan) {
+  void planCallback(const mapf_msgs::msg::GlobalPlan::ConstPtr &mapf_global_plan) {
     if (!equal(plan_arr_, mapf_global_plan->global_plan)) {
       std::lock_guard<std::mutex> lock(plan_mtx_);
 
@@ -210,24 +202,21 @@ public:
     }
   }
 
-  bool equal(const mapf_msgs::SinglePlan &a, const mapf_msgs::SinglePlan &b) {
-    if (a.time_step.size() != b.time_step.size() ||
-        a.plan.poses.size() != b.plan.poses.size()) {
+  bool equal(const mapf_msgs::msg::SinglePlan &a, const mapf_msgs::msg::SinglePlan &b) {
+    if (a.time_step.size() != b.time_step.size() || a.plan.poses.size() != b.plan.poses.size()) {
       return false;
     }
     bool res = true;
     for (int i = 0; i < a.plan.poses.size(); ++i) {
-      res &=
-          (a.plan.poses[i].pose.position.x == b.plan.poses[i].pose.position.x &&
-           a.plan.poses[i].pose.position.y == b.plan.poses[i].pose.position.y &&
-           a.plan.poses[i].pose.orientation.w ==
-               b.plan.poses[i].pose.orientation.w);
+      res &= (a.plan.poses[i].pose.position.x == b.plan.poses[i].pose.position.x &&
+              a.plan.poses[i].pose.position.y == b.plan.poses[i].pose.position.y &&
+              a.plan.poses[i].pose.orientation.w == b.plan.poses[i].pose.orientation.w);
     }
     return res;
   }
 
-  bool equal(const std::vector<mapf_msgs::SinglePlan> &a,
-             const std::vector<mapf_msgs::SinglePlan> &b) {
+  bool equal(const std::vector<mapf_msgs::msg::SinglePlan> &a,
+             const std::vector<mapf_msgs::msg::SinglePlan> &b) {
     if (a.size() != b.size()) {
       return false;
     }
@@ -238,12 +227,12 @@ public:
     return res;
   }
 
-  move_base_msgs::MoveBaseGoal
-  getMBGoalFromGeoPose(const geometry_msgs::PoseStamped &curr_location) {
-    move_base_msgs::MoveBaseGoal tmp_goal;
-    tmp_goal.target_pose.header.frame_id = "map";
-    tmp_goal.target_pose.header.stamp = ros::Time::now();
-    tmp_goal.target_pose.pose = curr_location.pose;
+  nav2_msgs::action::NavigateToPose::Goal
+  getMBGoalFromGeoPose(const geometry_msgs::msg::PoseStamped &curr_location) {
+    nav2_msgs::action::NavigateToPose::Goal tmp_goal;
+    tmp_goal.pose.header.frame_id = "map";
+    tmp_goal.pose.header.stamp = this->get_clock()->now();
+    tmp_goal.pose.pose = curr_location.pose;
     return tmp_goal;
   }
 };
