@@ -66,12 +66,12 @@ install(
 )
 
 # sub plan of mapf result | use move_base client to execute plan
-# add_executable(plan_executor example/plan_executor.cpp)
-# ament_target_dependencies(plan_executor ${dependencies})
-# install(
-#   TARGETS plan_executor
-#   RUNTIME DESTINATION lib/${PROJECT_NAME}
-# )
+add_executable(plan_executor example/plan_executor.cpp)
+ament_target_dependencies(plan_executor ${dependencies})
+install(
+  TARGETS plan_executor
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
 install(DIRECTORY include/
   DESTINATION include/
