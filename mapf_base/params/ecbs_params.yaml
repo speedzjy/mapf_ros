@@ -1,2 +1,3 @@
-ecbs:
-  suboptimality: 2.0
+ros__parameters::
+  ecbs:
+    suboptimality: 2.0

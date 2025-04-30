@@ -49,8 +49,46 @@ MAPFBase::MAPFBase()
   pub_mapf_global_plan_ =
       this->create_publisher<mapf_msgs::msg::GlobalPlan>("global_plan", 1);
 
-  costmap_ros_ = new nav2_costmap_2d::Costmap2DROS("global_costmap");
-  costmap_ros_->pause();
+  costmap_ros_ = new nav2_costmap_2d::Costmap2DROS(
+      "mapf_costmap", std::string{get_namespace()}, "mapf_costmap");
+  // costmap_ros_->pause();
+
+  // 打印所有已加载的参数名称和值
+  auto param_names = this->list_parameters({}, 10).names;
+
+  if (param_names.empty()) {
+    RCLCPP_WARN(this->get_logger(), "No parameters found.");
+  } else {
+    for (const auto &param_name : param_names) {
+      rclcpp::Parameter param;
+      this->get_parameter(param_name, param);
+      RCLCPP_INFO(this->get_logger(), "Parameter: %s = %s", param_name.c_str(),
+                  param.value_to_string().c_str());
+    }
+  }
+
+  if (costmap_ros_) {
+    // 获取 costmap_ros_ 节点名
+    auto costmap_nameapce = costmap_ros_->get_namespace();
+    RCLCPP_INFO(this->get_logger(), "Namespace: %s", costmap_nameapce);
+
+    // 获取参数名列表
+    // auto costmap_param_names = costmap_node->list_parameters({}, 10).names;
+
+    // if (costmap_param_names.empty()) {
+    //   RCLCPP_WARN(this->get_logger(),
+    //               "No parameters found in costmap_ros_ node.");
+    // } else {
+    //   for (const auto &param_name : costmap_param_names) {
+    //     rclcpp::Parameter param;
+    //     costmap_node->get_parameter(param_name, param);
+    //     RCLCPP_INFO(this->get_logger(), "Costmap parameter: %s = %s",
+    //                 param_name.c_str(), param.value_to_string().c_str());
+    //   }
+    // }
+  } else {
+    RCLCPP_INFO(this->get_logger(), "Costmap nullptr");
+  }
 
   do_mapf_thread_ =
       new boost::thread(boost::bind(&MAPFBase::doMAPFThread, this));
@@ -58,22 +96,30 @@ MAPFBase::MAPFBase()
       new boost::thread(boost::bind(&MAPFBase::stateMachine, this));
 
   // create a local planner
-  try {
-    mapf_planner_ = mapf_loader_.createUniqueInstance(planner_name_);
-    RCLCPP_INFO(this->get_logger(), "Created local_planner %s",
-                planner_name_.c_str());
-    mapf_planner_->initialize(mapf_loader_.getName(planner_name_),
-                              costmap_ros_);
-  } catch (const pluginlib::PluginlibException &ex) {
-    RCLCPP_FATAL(
-        this->get_logger(),
-        "Failed to create the %s planner, are you sure it is properly "
-        "registered and that the containing library is built? Exception: %s",
-        planner_name_.c_str(), ex.what());
-    exit(1);
-  }
+  // try {
+  //   mapf_planner_ = mapf_loader_.createUniqueInstance(planner_name_);
+  //   RCLCPP_INFO(this->get_logger(), "Created local_planner %s",
+  //               planner_name_.c_str());
+  //   mapf_planner_->initialize(mapf_loader_.getName(planner_name_),
+  //                             costmap_ros_);
+  // } catch (const pluginlib::PluginlibException &ex) {
+  //   RCLCPP_FATAL(
+  //       this->get_logger(),
+  //       "Failed to create the %s planner, are you sure it is properly "
+  //       "registered and that the containing library is built? Exception: %s",
+  //       planner_name_.c_str(), ex.what());
+  //   exit(1);
+  // }
 
-  costmap_ros_->start();
+  // costmap_ros_->start();
+
+  if (costmap_ros_ == nullptr) {
+    RCLCPP_ERROR(this->get_logger(), "Costmap2DROS initialization failed.");
+  } else {
+    costmap_ros_->configure();
+    costmap_ros_->activate();
+    // costmap_ros_->start();
+  }
 }
 
 MAPFBase::~MAPFBase() {
@@ -113,8 +159,8 @@ void MAPFBase::getParam() {
   plan_topic_.resize(agent_num_);
 
   for (int i = 0; i < agent_num_; ++i) {
-    std::string base_frame_param = "base_frame_id/agent_" + std::to_string(i);
-    std::string plan_topic_param = "plan_topic/agent_" + std::to_string(i);
+    std::string base_frame_param = "base_frame_id_" + std::to_string(i);
+    std::string plan_topic_param = "plan_topic_" + std::to_string(i);
 
     this->declare_parameter<std::string>(base_frame_param, "base_link");
     this->get_parameter(base_frame_param, base_frame_id_[i]);

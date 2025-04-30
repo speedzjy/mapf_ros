@@ -1,4 +1,4 @@
-<library path="lib/libecbs_planner.so">
+<library path="ecbs_planner">
   <class name="mapf_planner/ECBSROS" type="mapf::ECBSROS" base_class_type="mapf::MAPFROS">
     <description>
       A implementation of ecbs planner.

@@ -71,9 +71,11 @@ void CBSROS::updateObstacleThread() {
   rclcpp::Rate loop_rate(0.5); // update obstacle every 2s
 
   try {
+    RCLCPP_INFO(logger_, "costmap_->getSizeInCellsX()");
     while (rclcpp::ok()) {
       int dimx = costmap_->getSizeInCellsX(),
           dimy = costmap_->getSizeInCellsY();
+      RCLCPP_INFO(logger_, "costmap_->getCharMap()");
       const unsigned char *costarr = costmap_->getCharMap();
 
       {

@@ -1,4 +1,4 @@
-<library path="lib/libsipp_planner_plugins.so">
+<library path="sipp_planner">
   <class name="mapf_planner/SIPPROS" type="mapf::SIPPROS" base_class_type="mapf::MAPFROS">
     <description>
       A implementation of sipp planner.
