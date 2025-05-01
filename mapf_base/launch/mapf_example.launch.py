@@ -77,9 +77,9 @@ def generate_launch_description():
                                 ]
                             ),
                             # {"mapf_planner": "mapf_planner/ECBSROS"},
-                            # PathJoinSubstitution(
-                            #     [FindPackageShare("mapf_base"), "params", "ecbs_params.yaml"]
-                            # ),
+                            PathJoinSubstitution(
+                                [FindPackageShare("mapf_base"), "params", "ecbs_params.yaml"]
+                            ),
                         ],
                     ),
                     Node(
