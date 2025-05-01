@@ -37,7 +37,6 @@ def generate_launch_description():
     configured_params = {"use_sim_time": True, "yaml_filename": map_file}
 
     lifecycle_nodes = ["map_server", "mapf_base_node"]
-    # lifecycle_nodes = ["map_server"]
 
     return LaunchDescription(
         [
@@ -64,10 +63,18 @@ def generate_launch_description():
                         respawn=True,
                         parameters=[
                             PathJoinSubstitution(
-                                [FindPackageShare("mapf_base"), "params", "costmap_params.yaml"]
+                                [
+                                    FindPackageShare("mapf_base"),
+                                    "params",
+                                    "costmap_params.yaml",
+                                ]
                             ),
                             PathJoinSubstitution(
-                                [FindPackageShare("mapf_base"), "params", "mapf_params.yaml"]
+                                [
+                                    FindPackageShare("mapf_base"),
+                                    "params",
+                                    "mapf_params.yaml",
+                                ]
                             ),
                             # {"mapf_planner": "mapf_planner/ECBSROS"},
                             # PathJoinSubstitution(

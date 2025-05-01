@@ -41,10 +41,10 @@ namespace mapf {
 class MAPFROS {
 public:
   virtual void initialize(std::string name,
-                          nav2_costmap_2d::Costmap2DROS *costmap_ros) = 0;
+                          std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
+                          nav2_util::LifecycleNode::SharedPtr node) = 0;
 
-  virtual bool makePlan(const nav_msgs::msg::Path &start,
-                        const nav_msgs::msg::Path &goal,
+  virtual bool makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Path &goal,
                         mapf_msgs::msg::GlobalPlan &plan, double &cost,
                         const double &time_tolerance) = 0;
 

@@ -31,6 +31,7 @@
 #include "rclcpp/rclcpp.hpp"
 
 #include "nav2_costmap_2d/costmap_2d.hpp"
+#include "nav2_util/lifecycle_node.hpp"
 #include "pluginlib/class_loader.hpp"
 
 #include "std_srvs/srv/empty.hpp"
@@ -46,9 +47,9 @@
 #include "mapf_ros/cbs/cbs_ros.hpp"
 
 namespace mapf {
-class MAPFBase : public rclcpp::Node {
+class MAPFBase : public nav2_util::LifecycleNode {
 public:
-  MAPFBase();
+  explicit MAPFBase(const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
   ~MAPFBase();
 
   void getParam();
@@ -66,14 +67,19 @@ public:
 
   void publishPlan(const mapf_msgs::msg::GlobalPlan &plan);
 
-private:
+protected:
+  nav2_util::CallbackReturn on_configure(const rclcpp_lifecycle::State &state) override;
+  nav2_util::CallbackReturn on_activate(const rclcpp_lifecycle::State &state) override;
+  nav2_util::CallbackReturn on_deactivate(const rclcpp_lifecycle::State &state) override;
+  nav2_util::CallbackReturn on_cleanup(const rclcpp_lifecycle::State &state) override;
+  nav2_util::CallbackReturn on_shutdown(const rclcpp_lifecycle::State &state) override;
+
   std::mutex mtx_mapf_goal_;
   std::mutex mtx_planner_;
 
   rclcpp::Subscription<mapf_msgs::msg::Goal>::SharedPtr sub_mapf_goal_;
-  rclcpp::Publisher<mapf_msgs::msg::GlobalPlan>::SharedPtr
-      pub_mapf_global_plan_;
-  std::vector<rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr> pub_gui_plan_;
+  rclcpp_lifecycle::LifecyclePublisher<mapf_msgs::msg::GlobalPlan>::SharedPtr pub_mapf_global_plan_;
+  std::vector<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr> pub_gui_plan_;
 
   // mapf params
   std::string planner_name_;
@@ -91,7 +97,7 @@ private:
   boost::thread *do_mapf_thread_;
   boost::thread *state_machine_thread_;
 
-  nav2_costmap_2d::Costmap2DROS *costmap_ros_;
+  std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
 
   pluginlib::ClassLoader<mapf::MAPFROS> mapf_loader_;
   boost::shared_ptr<mapf::MAPFROS> mapf_planner_;

@@ -44,21 +44,25 @@ namespace mapf {
 
 SIPPROS::SIPPROS() : costmap_(nullptr), initialized_(false) {}
 
-SIPPROS::SIPPROS(std::string name, nav2_costmap_2d::Costmap2DROS *costmap_ros)
+SIPPROS::SIPPROS(std::string name, std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
+                 nav2_util::LifecycleNode::SharedPtr node)
     : costmap_(nullptr), initialized_(false) {
-  initialize(name, costmap_ros);
+  initialize(name, costmap_ros, node);
 }
 
 void SIPPROS::initialize(std::string name,
-                         nav2_costmap_2d::Costmap2DROS *costmap_ros) {
+                         std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
+                         nav2_util::LifecycleNode::SharedPtr node) {
   if (!initialized_) {
     // ROS_INFO("New CBS planner.");
+    node_ = node;
+    clock_ = node_->get_clock();
+    logger_ = node_->get_logger();
 
     costmap_ = costmap_ros->getCostmap();
     global_frame_ = costmap_ros->getGlobalFrameID();
 
-    update_obstacle_thread_ =
-        new boost::thread(boost::bind(&SIPPROS::updateObstacleThread, this));
+    update_obstacle_thread_ = new boost::thread(boost::bind(&SIPPROS::updateObstacleThread, this));
 
     initialized_ = true;
   }
@@ -70,8 +74,7 @@ void SIPPROS::updateObstacleThread() {
 
   try {
     while (rclcpp::ok()) {
-      int dimx = costmap_->getSizeInCellsX(),
-          dimy = costmap_->getSizeInCellsY();
+      int dimx = costmap_->getSizeInCellsX(), dimy = costmap_->getSizeInCellsY();
       const unsigned char *costarr = costmap_->getCharMap();
 
       {
@@ -83,8 +86,7 @@ void SIPPROS::updateObstacleThread() {
           int offset = 0, num_obs = 0;
           for (int i = 0; i < dimy; ++i) {
             for (int j = 0; j < dimx; ++j) {
-              if (costarr[offset] >=
-                  nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+              if (costarr[offset] >= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
                 obstacles_.insert(State(j, i));
                 num_obs++;
               }
@@ -103,27 +105,24 @@ void SIPPROS::updateObstacleThread() {
   }
 }
 
-bool SIPPROS::makePlan(const nav_msgs::msg::Path &start,
-                       const nav_msgs::msg::Path &goal,
+bool SIPPROS::makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Path &goal,
                        mapf_msgs::msg::GlobalPlan &plan, double &cost,
                        const double &time_tolerance) {
   // until tf can handle transforming things that are way in the past... we'll
   // require the goal to be in our global frame
   if (goal.header.frame_id != global_frame_) {
-    RCLCPP_ERROR(
-        logger_,
-        "The goal pose passed to this planner must be in the %s frame.  "
-        "It is instead in the %s frame.",
-        global_frame_.c_str(), goal.header.frame_id.c_str());
+    RCLCPP_ERROR(logger_,
+                 "The goal pose passed to this planner must be in the %s frame.  "
+                 "It is instead in the %s frame.",
+                 global_frame_.c_str(), goal.header.frame_id.c_str());
     return false;
   }
 
   if (start.header.frame_id != global_frame_) {
-    RCLCPP_ERROR(
-        logger_,
-        "The start pose passed to this planner must be in the %s frame.  "
-        "It is instead in the %s frame.",
-        global_frame_.c_str(), start.header.frame_id.c_str());
+    RCLCPP_ERROR(logger_,
+                 "The start pose passed to this planner must be in the %s frame.  "
+                 "It is instead in the %s frame.",
+                 global_frame_.c_str(), start.header.frame_id.c_str());
     return false;
   }
 
@@ -147,13 +146,12 @@ bool SIPPROS::makePlan(const nav_msgs::msg::Path &start,
   for (int i = 0; i < agent_num; ++i) {
     // transform to map form
     unsigned int start_x_i, start_y_i;
-    worldToMap(start.poses[i].pose.position.x, start.poses[i].pose.position.y,
-               start_x_i, start_y_i);
+    worldToMap(start.poses[i].pose.position.x, start.poses[i].pose.position.y, start_x_i,
+               start_y_i);
     startStates.emplace_back(State(start_x_i, start_y_i));
 
     unsigned int goal_x_i, goal_y_i;
-    worldToMap(goal.poses[i].pose.position.x, goal.poses[i].pose.position.y,
-               goal_x_i, goal_y_i);
+    worldToMap(goal.poses[i].pose.position.x, goal.poses[i].pose.position.y, goal_x_i, goal_y_i);
     goals.emplace_back(State(goal_x_i, goal_y_i));
 
     // because mapf run in low-resolution map goal points may beFreespace on
@@ -193,8 +191,7 @@ bool SIPPROS::makePlan(const nav_msgs::msg::Path &start,
     sipp_t sipp(env);
 
     for (const auto &collisionIntervals : allCollisionIntervals) {
-      sipp.setCollisionIntervals(collisionIntervals.first,
-                                 collisionIntervals.second);
+      sipp.setCollisionIntervals(collisionIntervals.first, collisionIntervals.second);
     }
     // Plan
     PlanResult<State, Action, int> &solution = solutions[i];
@@ -205,14 +202,13 @@ bool SIPPROS::makePlan(const nav_msgs::msg::Path &start,
       auto lastState = solution.states[0];
       for (size_t i = 1; i < solution.states.size(); ++i) {
         if (solution.states[i].first != lastState.first) {
-          allCollisionIntervals[lastState.first].push_back(sipp_t::interval(
-              lastState.second, solution.states[i].second - 1));
+          allCollisionIntervals[lastState.first].push_back(
+              sipp_t::interval(lastState.second, solution.states[i].second - 1));
           lastState = solution.states[i];
         }
       }
       allCollisionIntervals[solution.states.back().first].push_back(
-          sipp_t::interval(solution.states.back().second,
-                           std::numeric_limits<int>::max()));
+          sipp_t::interval(solution.states.back().second, std::numeric_limits<int>::max()));
     } else {
       RCLCPP_ERROR(logger_, "Planning NOT successful!");
     }
@@ -231,17 +227,15 @@ bool SIPPROS::makePlan(const nav_msgs::msg::Path &start,
     RCLCPP_DEBUG_STREAM(logger_, "Planning successful!");
     RCLCPP_DEBUG_STREAM(logger_, "runtime: " << timer.elapsedSeconds());
     RCLCPP_DEBUG_STREAM(logger_, "cost: " << cost);
-    RCLCPP_DEBUG_STREAM(logger_,
-                        "makespan(involve start & end): " << plan.makespan);
+    RCLCPP_DEBUG_STREAM(logger_, "makespan(involve start & end): " << plan.makespan);
   }
 
   return success;
 }
 
-void SIPPROS::generatePlan(
-    const std::vector<PlanResult<State, Action, int>> &solution,
-    const nav_msgs::msg::Path &goal, mapf_msgs::msg::GlobalPlan &plan,
-    double &cost) {
+void SIPPROS::generatePlan(const std::vector<PlanResult<State, Action, int>> &solution,
+                           const nav_msgs::msg::Path &goal, mapf_msgs::msg::GlobalPlan &plan,
+                           double &cost) {
   int &makespan = plan.makespan;
   for (const auto &s : solution) {
     cost += s.cost;
@@ -263,8 +257,7 @@ void SIPPROS::generatePlan(
       geometry_msgs::msg::PoseStamped cur_pose;
       cur_pose.header.frame_id = single_path.header.frame_id;
       cur_pose.pose.orientation.w = 1;
-      mapToWorld(state.first.x, state.first.y, cur_pose.pose.position.x,
-                 cur_pose.pose.position.y);
+      mapToWorld(state.first.x, state.first.y, cur_pose.pose.position.x, cur_pose.pose.position.y);
       single_path.poses.push_back(cur_pose);
       single_plan.time_step.push_back(state.second);
     }
@@ -275,19 +268,16 @@ void SIPPROS::generatePlan(
   } // end solution for
 }
 
-void SIPPROS::worldToMap(const double &wx, const double &wy, unsigned int &mx,
-                         unsigned int &my) {
+void SIPPROS::worldToMap(const double &wx, const double &wy, unsigned int &mx, unsigned int &my) {
   if (!costmap_->worldToMap(wx, wy, mx, my)) {
-    RCLCPP_WARN(logger_,
-                "The robot's start position is off the global costmap. "
-                "Planning will "
-                "always fail, are you sure the robot has been properly "
-                "localized?");
+    RCLCPP_WARN(logger_, "The robot's start position is off the global costmap. "
+                         "Planning will "
+                         "always fail, are you sure the robot has been properly "
+                         "localized?");
   }
 }
 
-void SIPPROS::mapToWorld(const unsigned int &mx, const unsigned int &my,
-                         double &wx, double &wy) {
+void SIPPROS::mapToWorld(const unsigned int &mx, const unsigned int &my, double &wx, double &wy) {
   costmap_->mapToWorld(mx, my, wx, wy);
 }
 
@@ -299,12 +289,10 @@ void SIPPROS::clearCell(const unsigned int &mx, const unsigned int &my) {
 }
 
 bool SIPPROS::checkIsObstacle(const unsigned int &mx, const unsigned int &my) {
-  return (costmap_->getCost(mx, my) >=
-          nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE);
+  return (costmap_->getCost(mx, my) >= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE);
 }
 
-bool SIPPROS::checkSurroundObstacle(const unsigned int &mx,
-                                    const unsigned int &my) {
+bool SIPPROS::checkSurroundObstacle(const unsigned int &mx, const unsigned int &my) {
   int dimx = costmap_->getSizeInCellsX(), dimy = costmap_->getSizeInCellsY();
   bool check_surround = true;
   std::vector<std::pair<int, int>> step{{0, 1}, {0, -1}, {-1, 0}, {1, 0}};

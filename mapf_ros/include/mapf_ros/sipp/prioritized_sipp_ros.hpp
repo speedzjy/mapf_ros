@@ -48,27 +48,25 @@ class SIPPROS : public mapf::MAPFROS {
 public:
   SIPPROS();
 
-  SIPPROS(std::string name, nav2_costmap_2d::Costmap2DROS *costmap_ros);
+  SIPPROS(std::string name, std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
+          nav2_util::LifecycleNode::SharedPtr node);
 
-  void initialize(std::string name,
-                  nav2_costmap_2d::Costmap2DROS *costmap_ros) override;
+  void initialize(std::string name, std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
+                  nav2_util::LifecycleNode::SharedPtr node) override;
 
-  bool makePlan(const nav_msgs::msg::Path &start,
-                const nav_msgs::msg::Path &goal,
+  bool makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Path &goal,
                 mapf_msgs::msg::GlobalPlan &plan, double &cost,
                 const double &time_tolerance) override;
 
   // Update global obstacle thread
   void updateObstacleThread();
 
-  void worldToMap(const double &wx, const double &wy, unsigned int &mx,
-                  unsigned int &my);
-  void mapToWorld(const unsigned int &mx, const unsigned int &my, double &wx,
-                  double &wy);
+  void worldToMap(const double &wx, const double &wy, unsigned int &mx, unsigned int &my);
+  void mapToWorld(const unsigned int &mx, const unsigned int &my, double &wx, double &wy);
 
   void generatePlan(const std::vector<PlanResult<State, Action, int>> &solution,
-                    const nav_msgs::msg::Path &goal,
-                    mapf_msgs::msg::GlobalPlan &plan, double &cost);
+                    const nav_msgs::msg::Path &goal, mapf_msgs::msg::GlobalPlan &plan,
+                    double &cost);
 
   // set the associated location in obstacles to be free
   void clearCell(const unsigned int &mx, const unsigned int &my);
@@ -98,7 +96,9 @@ protected:
   rclcpp::Clock::SharedPtr clock_;
 
   // Logger
-  rclcpp::Logger logger_{rclcpp::get_logger("SIPPROSPlanner")};
+  rclcpp::Logger logger_{rclcpp::get_logger("SIPPPlanner")};
+
+  nav2_util::LifecycleNode::SharedPtr node_;
 };
 }; // namespace mapf
 

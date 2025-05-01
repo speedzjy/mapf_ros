@@ -44,17 +44,20 @@ namespace mapf {
 
 ECBSROS::ECBSROS() : costmap_(nullptr), initialized_(false) {}
 
-ECBSROS::ECBSROS(std::string name, nav2_costmap_2d::Costmap2DROS *costmap_ros)
+ECBSROS::ECBSROS(std::string name, std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
+                 nav2_util::LifecycleNode::SharedPtr node)
     : costmap_(nullptr), initialized_(false) {
-  initialize(name, costmap_ros);
+  initialize(name, costmap_ros, node);
 }
 
 void ECBSROS::initialize(std::string name,
-                         nav2_costmap_2d::Costmap2DROS *costmap_ros) {
+                         std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
+                         nav2_util::LifecycleNode::SharedPtr node) {
   if (!initialized_) {
     // ROS_INFO("New ECBS planner.");
-    clock_ = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
-    logger_ = rclcpp::get_logger("ecbs_ros");
+    node_ = node;
+    clock_ = node_->get_clock();
+    logger_ = node_->get_logger();
 
     ros::NodeHandle nh("~");
     nh.param<double>("ecbs/suboptimality", suboptimality_, 1.0);
@@ -62,8 +65,7 @@ void ECBSROS::initialize(std::string name,
     costmap_ = costmap_ros->getCostmap();
     global_frame_ = costmap_ros->getGlobalFrameID();
 
-    update_obstacle_thread_ =
-        new boost::thread(boost::bind(&ECBSROS::updateObstacleThread, this));
+    update_obstacle_thread_ = new boost::thread(boost::bind(&ECBSROS::updateObstacleThread, this));
 
     initialized_ = true;
   }
@@ -75,8 +77,7 @@ void ECBSROS::updateObstacleThread() {
 
   try {
     while (rclcpp::ok()) {
-      int dimx = costmap_->getSizeInCellsX(),
-          dimy = costmap_->getSizeInCellsY();
+      int dimx = costmap_->getSizeInCellsX(), dimy = costmap_->getSizeInCellsY();
       const unsigned char *costarr = costmap_->getCharMap();
 
       {
@@ -108,8 +109,7 @@ void ECBSROS::updateObstacleThread() {
 }
 
 bool ECBSROS::makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
-                       mapf_msgs::GlobalPlan &plan, double &cost,
-                       const double &time_tolerance) {
+                       mapf_msgs::GlobalPlan &plan, double &cost, const double &time_tolerance) {
   // until tf can handle transforming things that are way in the past... we'll
   // require the goal to be in our global frame
   if (goal.header.frame_id != global_frame_) {
@@ -146,13 +146,12 @@ bool ECBSROS::makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
   for (int i = 0; i < agent_num; ++i) {
     // transform to map form
     unsigned int start_x_i, start_y_i;
-    worldToMap(start.poses[i].pose.position.x, start.poses[i].pose.position.y,
-               start_x_i, start_y_i);
+    worldToMap(start.poses[i].pose.position.x, start.poses[i].pose.position.y, start_x_i,
+               start_y_i);
     startStates.emplace_back(State(0, start_x_i, start_y_i));
 
     unsigned int goal_x_i, goal_y_i;
-    worldToMap(goal.poses[i].pose.position.x, goal.poses[i].pose.position.y,
-               goal_x_i, goal_y_i);
+    worldToMap(goal.poses[i].pose.position.x, goal.poses[i].pose.position.y, goal_x_i, goal_y_i);
     goals.emplace_back(Location(goal_x_i, goal_y_i));
 
     // because mapf run in low-resolution map goal points may beFreespace on
@@ -179,8 +178,7 @@ bool ECBSROS::makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
 
   std::vector<PlanResult<State, Action, int>> solution;
   Environment mapf(dimx, dimy, obstacles_, goals, false);
-  ECBS<State, Action, int, Conflict, Constraints, Environment> ecbs(
-      mapf, suboptimality_);
+  ECBS<State, Action, int, Conflict, Constraints, Environment> ecbs(mapf, suboptimality_);
 
   Timer timer;
   bool success = ecbs.search(startStates, solution, time_tolerance);
@@ -208,9 +206,8 @@ bool ECBSROS::makePlan(const nav_msgs::Path &start, const nav_msgs::Path &goal,
   return success;
 }
 
-void ECBSROS::generatePlan(
-    const std::vector<PlanResult<State, Action, int>> &solution,
-    const nav_msgs::Path &goal, mapf_msgs::GlobalPlan &plan, double &cost) {
+void ECBSROS::generatePlan(const std::vector<PlanResult<State, Action, int>> &solution,
+                           const nav_msgs::Path &goal, mapf_msgs::GlobalPlan &plan, double &cost) {
   int &makespan = plan.makespan;
   for (const auto &s : solution) {
     cost += s.cost;
@@ -232,8 +229,7 @@ void ECBSROS::generatePlan(
       geometry_msgs::PoseStamped cur_pose;
       cur_pose.header.frame_id = single_path.header.frame_id;
       cur_pose.pose.orientation.w = 1;
-      mapToWorld(state.first.x, state.first.y, cur_pose.pose.position.x,
-                 cur_pose.pose.position.y);
+      mapToWorld(state.first.x, state.first.y, cur_pose.pose.position.x, cur_pose.pose.position.y);
       single_path.poses.push_back(cur_pose);
       single_plan.time_step.push_back(state.second);
     }
@@ -244,8 +240,7 @@ void ECBSROS::generatePlan(
   } // end solution for
 }
 
-void ECBSROS::worldToMap(const double &wx, const double &wy, unsigned int &mx,
-                         unsigned int &my) {
+void ECBSROS::worldToMap(const double &wx, const double &wy, unsigned int &mx, unsigned int &my) {
   if (!costmap_->worldToMap(wx, wy, mx, my)) {
     ROS_WARN("The robot's start position is off the global costmap. "
              "Planning will "
@@ -254,8 +249,7 @@ void ECBSROS::worldToMap(const double &wx, const double &wy, unsigned int &mx,
   }
 }
 
-void ECBSROS::mapToWorld(const unsigned int &mx, const unsigned int &my,
-                         double &wx, double &wy) {
+void ECBSROS::mapToWorld(const unsigned int &mx, const unsigned int &my, double &wx, double &wy) {
   costmap_->mapToWorld(mx, my, wx, wy);
 }
 
@@ -270,8 +264,7 @@ bool ECBSROS::checkIsObstacle(const unsigned int &mx, const unsigned int &my) {
   return (costmap_->getCost(mx, my) >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE);
 }
 
-bool ECBSROS::checkSurroundObstacle(const unsigned int &mx,
-                                    const unsigned int &my) {
+bool ECBSROS::checkSurroundObstacle(const unsigned int &mx, const unsigned int &my) {
   int dimx = costmap_->getSizeInCellsX(), dimy = costmap_->getSizeInCellsY();
   bool check_surround = true;
   std::vector<std::pair<int, int>> step{{0, 1}, {0, -1}, {-1, 0}, {1, 0}};
