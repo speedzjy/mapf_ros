@@ -34,9 +34,22 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     autostart = LaunchConfiguration("autostart")
 
-    configured_params = {"use_sim_time": True, "yaml_filename": map_file}
-
     lifecycle_nodes = ["map_server", "mapf_base_node"]
+
+    mapf_params = PathJoinSubstitution(
+        [
+            FindPackageShare("mapf_base"),
+            "params",
+            "mapf_params.yaml",
+        ]
+    )
+    costmap_params = PathJoinSubstitution(
+        [
+            FindPackageShare("mapf_base"),
+            "params",
+            "costmap_params.yaml",
+        ]
+    )
 
     return LaunchDescription(
         [
@@ -52,7 +65,10 @@ def generate_launch_description():
                         name="map_server",
                         output="screen",
                         respawn=True,
-                        parameters=[configured_params],
+                        parameters=[
+                            mapf_params,
+                            {"yaml_filename": map_file},
+                        ],
                     ),
                     Node(
                         namespace="mapf",
@@ -62,24 +78,9 @@ def generate_launch_description():
                         output="screen",
                         respawn=True,
                         parameters=[
-                            PathJoinSubstitution(
-                                [
-                                    FindPackageShare("mapf_base"),
-                                    "params",
-                                    "costmap_params.yaml",
-                                ]
-                            ),
-                            PathJoinSubstitution(
-                                [
-                                    FindPackageShare("mapf_base"),
-                                    "params",
-                                    "mapf_params.yaml",
-                                ]
-                            ),
+                            costmap_params,
+                            mapf_params,
                             # {"mapf_planner": "mapf_planner/ECBSROS"},
-                            PathJoinSubstitution(
-                                [FindPackageShare("mapf_base"), "params", "ecbs_params.yaml"]
-                            ),
                         ],
                     ),
                     Node(
@@ -96,24 +97,27 @@ def generate_launch_description():
                     ),
                 ]
             ),
-            # # 3. Launch goal_transformer and plan_executor
-            # GroupAction(
-            #     [
-            #         Node(
-            #             package="mapf_base",
-            #             executable="goal_transformer",
-            #             name="goal_transformer",
-            #             namespace="mapf_base",
-            #             output="screen",
-            #         ),
-            #         Node(
-            #             package="mapf_base",
-            #             executable="plan_executor",
-            #             name="plan_executor",
-            #             namespace="mapf_base",
-            #             output="screen",
-            #         ),
-            #     ]
-            # ),
+            # 3. Launch goal_transformer and plan_executor
+            GroupAction(
+                [
+                    Node(
+                        namespace="mapf",
+                        package="mapf_base",
+                        executable="goal_transformer",
+                        name="goal_transformer",
+                        output="screen",
+                        parameters=[mapf_params],
+                    ),
+                    Node(
+                        namespace="mapf",
+                        package="mapf_base",
+                        executable="plan_executor",
+                        name="plan_executor",
+                        output="screen",
+                        arguments=['--ros-args', '--log-level', "info"],
+                        parameters=[mapf_params],
+                    ),
+                ]
+            ),
         ]
     )

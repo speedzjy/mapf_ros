@@ -1,5 +1,0 @@
-mapf:
-  mapf_base_node:
-    ros__parameters::
-      ecbs:
-        suboptimality: 2.0

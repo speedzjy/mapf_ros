@@ -44,15 +44,17 @@ namespace mapf {
 
 CBSROS::CBSROS() : costmap_(nullptr), initialized_(false) {}
 
-CBSROS::CBSROS(std::string name, std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
+CBSROS::CBSROS(std::string name,
+               std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
                nav2_util::LifecycleNode::SharedPtr node)
     : costmap_(nullptr), initialized_(false) {
   initialize(name, costmap_ros, node);
 }
 
-void CBSROS::initialize(std::string name,
-                        std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
-                        nav2_util::LifecycleNode::SharedPtr node) {
+void CBSROS::initialize(
+    std::string name,
+    std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros,
+    nav2_util::LifecycleNode::SharedPtr node) {
   if (!initialized_) {
     // ROS_INFO("New CBS planner.");
     node_ = node;
@@ -62,7 +64,8 @@ void CBSROS::initialize(std::string name,
     costmap_ = costmap_ros->getCostmap();
     global_frame_ = costmap_ros->getGlobalFrameID();
 
-    update_obstacle_thread_ = new boost::thread(boost::bind(&CBSROS::updateObstacleThread, this));
+    update_obstacle_thread_ =
+        new boost::thread(boost::bind(&CBSROS::updateObstacleThread, this));
 
     initialized_ = true;
   }
@@ -74,7 +77,8 @@ void CBSROS::updateObstacleThread() {
 
   try {
     while (rclcpp::ok()) {
-      int dimx = costmap_->getSizeInCellsX(), dimy = costmap_->getSizeInCellsY();
+      int dimx = costmap_->getSizeInCellsX(),
+          dimy = costmap_->getSizeInCellsY();
       const unsigned char *costarr = costmap_->getCharMap();
 
       {
@@ -86,7 +90,8 @@ void CBSROS::updateObstacleThread() {
           int offset = 0, num_obs = 0;
           for (int i = 0; i < dimy; ++i) {
             for (int j = 0; j < dimx; ++j) {
-              if (costarr[offset] >= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+              if (costarr[offset] >=
+                  nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
                 obstacles_.insert(Location(j, i));
                 num_obs++;
               }
@@ -105,24 +110,27 @@ void CBSROS::updateObstacleThread() {
   }
 }
 
-bool CBSROS::makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Path &goal,
+bool CBSROS::makePlan(const nav_msgs::msg::Path &start,
+                      const nav_msgs::msg::Path &goal,
                       mapf_msgs::msg::GlobalPlan &plan, double &cost,
                       const double &time_tolerance) {
   // until tf can handle transforming things that are way in the past... we'll
   // require the goal to be in our global frame
   if (goal.header.frame_id != global_frame_) {
-    RCLCPP_ERROR(logger_,
-                 "The goal pose passed to this planner must be in the %s frame.  "
-                 "It is instead in the %s frame.",
-                 global_frame_.c_str(), goal.header.frame_id.c_str());
+    RCLCPP_ERROR(
+        logger_,
+        "The goal pose passed to this planner must be in the %s frame.  "
+        "It is instead in the %s frame.",
+        global_frame_.c_str(), goal.header.frame_id.c_str());
     return false;
   }
 
   if (start.header.frame_id != global_frame_) {
-    RCLCPP_ERROR(logger_,
-                 "The start pose passed to this planner must be in the %s frame.  "
-                 "It is instead in the %s frame.",
-                 global_frame_.c_str(), start.header.frame_id.c_str());
+    RCLCPP_ERROR(
+        logger_,
+        "The start pose passed to this planner must be in the %s frame.  "
+        "It is instead in the %s frame.",
+        global_frame_.c_str(), start.header.frame_id.c_str());
     return false;
   }
 
@@ -146,12 +154,13 @@ bool CBSROS::makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Pat
   for (int i = 0; i < agent_num; ++i) {
     // transform to map form
     unsigned int start_x_i, start_y_i;
-    worldToMap(start.poses[i].pose.position.x, start.poses[i].pose.position.y, start_x_i,
-               start_y_i);
+    worldToMap(start.poses[i].pose.position.x, start.poses[i].pose.position.y,
+               start_x_i, start_y_i);
     startStates.emplace_back(State(0, start_x_i, start_y_i));
 
     unsigned int goal_x_i, goal_y_i;
-    worldToMap(goal.poses[i].pose.position.x, goal.poses[i].pose.position.y, goal_x_i, goal_y_i);
+    worldToMap(goal.poses[i].pose.position.x, goal.poses[i].pose.position.y,
+               goal_x_i, goal_y_i);
     goals.emplace_back(Location(goal_x_i, goal_y_i));
 
     // because mapf run in low-resolution map goal points may beFreespace on
@@ -165,7 +174,9 @@ bool CBSROS::makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Pat
     // (QAQ)
 
     if (checkSurroundObstacle(goal_x_i, goal_y_i)) {
-      RCLCPP_ERROR(logger_, "Goal is surrounded by Obstacles");
+      RCLCPP_ERROR(logger_,
+                   "Goal is surrounded by Obstacles: (x, y) = (%u, %u)",
+                   goal_x_i, goal_y_i);
       return false;
     }
 
@@ -185,7 +196,8 @@ bool CBSROS::makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Pat
   // check time tolerance
   timer.stop();
   if (timer.elapsedSeconds() > time_tolerance) {
-    RCLCPP_ERROR(logger_, "Planning time out! Cur time tolerance is %lf", time_tolerance);
+    RCLCPP_ERROR(logger_, "Planning time out! Cur time tolerance is %lf",
+                 time_tolerance);
     return false;
   }
 
@@ -196,9 +208,12 @@ bool CBSROS::makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Pat
     RCLCPP_DEBUG_STREAM(logger_, "Planning successful!");
     RCLCPP_DEBUG_STREAM(logger_, "runtime: " << timer.elapsedSeconds());
     RCLCPP_DEBUG_STREAM(logger_, "cost: " << cost);
-    RCLCPP_DEBUG_STREAM(logger_, "makespan(involve start & end): " << plan.makespan);
-    RCLCPP_DEBUG_STREAM(logger_, "highLevelExpanded: " << mapf.highLevelExpanded());
-    RCLCPP_DEBUG_STREAM(logger_, "lowLevelExpanded: " << mapf.lowLevelExpanded());
+    RCLCPP_DEBUG_STREAM(logger_,
+                        "makespan(involve start & end): " << plan.makespan);
+    RCLCPP_DEBUG_STREAM(logger_,
+                        "highLevelExpanded: " << mapf.highLevelExpanded());
+    RCLCPP_DEBUG_STREAM(logger_,
+                        "lowLevelExpanded: " << mapf.lowLevelExpanded());
   } else {
     RCLCPP_ERROR(logger_, "Planning NOT successful!");
   }
@@ -206,9 +221,10 @@ bool CBSROS::makePlan(const nav_msgs::msg::Path &start, const nav_msgs::msg::Pat
   return success;
 }
 
-void CBSROS::generatePlan(const std::vector<PlanResult<State, Action, int>> &solution,
-                          const nav_msgs::msg::Path &goal, mapf_msgs::msg::GlobalPlan &plan,
-                          double &cost) {
+void CBSROS::generatePlan(
+    const std::vector<PlanResult<State, Action, int>> &solution,
+    const nav_msgs::msg::Path &goal, mapf_msgs::msg::GlobalPlan &plan,
+    double &cost) {
   int &makespan = plan.makespan;
   for (const auto &s : solution) {
     cost += s.cost;
@@ -230,7 +246,8 @@ void CBSROS::generatePlan(const std::vector<PlanResult<State, Action, int>> &sol
       geometry_msgs::msg::PoseStamped cur_pose;
       cur_pose.header.frame_id = single_path.header.frame_id;
       cur_pose.pose.orientation.w = 1;
-      mapToWorld(state.first.x, state.first.y, cur_pose.pose.position.x, cur_pose.pose.position.y);
+      mapToWorld(state.first.x, state.first.y, cur_pose.pose.position.x,
+                 cur_pose.pose.position.y);
       single_path.poses.push_back(cur_pose);
       single_plan.time_step.push_back(state.second);
     }
@@ -241,16 +258,18 @@ void CBSROS::generatePlan(const std::vector<PlanResult<State, Action, int>> &sol
   } // end solution for
 }
 
-void CBSROS::worldToMap(const double &wx, const double &wy, unsigned int &mx, unsigned int &my) {
+void CBSROS::worldToMap(const double &wx, const double &wy, unsigned int &mx,
+                        unsigned int &my) {
   if (!costmap_->worldToMap(wx, wy, mx, my)) {
-    RCLCPP_WARN(logger_, "The robot's start position is off the global costmap. "
-                         "Planning will "
-                         "always fail, are you sure the robot has been properly "
-                         "localized?");
+    RCLCPP_WARN(logger_,
+                "The robot's position (%.3f, %.3f) is off the global costmap. "
+                "Planning will fail. Check localization and map alignment.",
+                wx, wy);
   }
 }
 
-void CBSROS::mapToWorld(const unsigned int &mx, const unsigned int &my, double &wx, double &wy) {
+void CBSROS::mapToWorld(const unsigned int &mx, const unsigned int &my,
+                        double &wx, double &wy) {
   costmap_->mapToWorld(mx, my, wx, wy);
 }
 
@@ -262,10 +281,12 @@ void CBSROS::clearCell(const unsigned int &mx, const unsigned int &my) {
 }
 
 bool CBSROS::checkIsObstacle(const unsigned int &mx, const unsigned int &my) {
-  return (costmap_->getCost(mx, my) >= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE);
+  return (costmap_->getCost(mx, my) >=
+          nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE);
 }
 
-bool CBSROS::checkSurroundObstacle(const unsigned int &mx, const unsigned int &my) {
+bool CBSROS::checkSurroundObstacle(const unsigned int &mx,
+                                   const unsigned int &my) {
   int dimx = costmap_->getSizeInCellsX(), dimy = costmap_->getSizeInCellsY();
   bool check_surround = true;
   std::vector<std::pair<int, int>> step{{0, 1}, {0, -1}, {-1, 0}, {1, 0}};

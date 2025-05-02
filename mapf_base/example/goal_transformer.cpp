@@ -71,7 +71,7 @@ GoalTransformer::GoalTransformer() : Node("goal_transformer_node") {
 
   // subscribe goal topic
   for (int i = 0; i < agent_num_; ++i) {
-    std::string goal_topic_param = "goal_topic/agent_" + std::to_string(i);
+    std::string goal_topic_param = "goal_topic.agent_" + std::to_string(i);
     this->declare_parameter<std::string>(goal_topic_param, "goal");
     this->get_parameter(goal_topic_param, goal_topic_[i]);
 

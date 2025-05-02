@@ -1,6 +1,12 @@
 mapf:
+  map_server:
+    ros__parameters:
+      use_sim_time: True
+
+mapf:
   mapf_base_node:
     ros__parameters:
+      use_sim_time: true
       # the number of agents
       agent_num: 2
       # global frame_id in /tf
@@ -13,22 +19,47 @@ mapf:
       # this parameter is better set to be the same as the map resolution
       goal_tolerance: 1.0
 
+      # ecbs
+      ecbs:
+        suboptimality: 2.0
+
       # the frame_id for each agent in the map
-      base_frame_id_0: "rb_0/base_link"
+      base_frame_id:
+        agent_0: rb_0/base_link
+        agent_1: rb_1/base_link
+
       # plan_topic will be used to publish gui path in rviz
-      plan_topic_0: "rb_0/plan"
+      plan_topic:
+        agent_0: rb_0/plan
+        agent_1: rb_1/plan
 
-      # the following params are for goal_transformer and plan_executor
-      # for plan_executor
-      # topic "(arg agent_name)/move_base/goal" will be send to move_base 
-      agent_name_0: "rb_0"
 
-      # for goal_transformer
+mapf:
+  plan_executor:
+    ros__parameters:
+      use_sim_time: true
+      # topic "(arg agent_name)/move_base/goal" will be send to move_base
+      agent_num: 2
+      agent_name:
+        agent_0: rb_0
+        agent_1: rb_1
+      
+      global_frame_id: map
+
+      base_frame_id:
+        agent_0: rb_0/base_link
+        agent_1: rb_1/base_link
+
+      plan_topic:
+        agent_0: rb_0/plan
+        agent_1: rb_1/plan
+
+mapf:
+  goal_transformer:
+    ros__parameters:
+      use_sim_time: true
       # used to receive goal for each agent
-      goal_topic_0: "rb_0/goal"
-
-      # agent 1
-      base_frame_id_1: "rb_1/base_link"
-      plan_topic_1: "rb_1/plan"
-      agent_name_1: "rb_1"
-      goal_topic_1: "rb_1/goal"
+      agent_num: 2
+      goal_topic:
+        agent_0: rb_0/goal
+        agent_1: rb_1/goal

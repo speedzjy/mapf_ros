@@ -5,26 +5,22 @@ mapf:
         use_sim_time: True
         update_frequency: 1.0
         publish_frequency: 1.0
-        origin_x: -30.0
-        origin_y: -30.0
 
         global_frame: map
 
         # choose one of "base_link" frame of the agents 
         robot_base_frame: rb_0/base_link
 
-        width: 60
-        height: 60
-        resolution: 0.05
+        # resolution: 0.05
         track_unknown_space: true
 
         plugins: ["static_layer"]
         
         static_layer:
           plugin: "nav2_costmap_2d::StaticLayer"
-          map_subscribe_transient_local: True
+          map_subscribe_transient_local: true
         
-        always_send_full_costmap: True
+        always_send_full_costmap: true
 
         
 

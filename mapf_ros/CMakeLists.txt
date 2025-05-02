@@ -39,20 +39,20 @@ set(dependencies
 )
 
 add_library(cbs_planner SHARED src/cbs_ros.cpp)
-# add_library(ecbs_planner SHARED src/ecbs_ros.cpp)
+add_library(ecbs_planner SHARED src/ecbs_ros.cpp)
 add_library(sipp_planner SHARED src/prioritized_sipp_ros.cpp)
 
 ament_target_dependencies(cbs_planner ${dependencies})
-# ament_target_dependencies(ecbs_planner ${dependencies})
+ament_target_dependencies(ecbs_planner ${dependencies})
 ament_target_dependencies(sipp_planner ${dependencies})
 
 pluginlib_export_plugin_description_file(mapf_ros cbs_planner_plugins.xml)
-# pluginlib_export_plugin_description_file(mapf_ros ecbs_planner_plugins.xml)
+pluginlib_export_plugin_description_file(mapf_ros ecbs_planner_plugins.xml)
 pluginlib_export_plugin_description_file(mapf_ros sipp_planner_plugins.xml)
 
 install(TARGETS 
   cbs_planner 
-  # ecbs_planner
+  ecbs_planner
   sipp_planner
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -65,14 +65,14 @@ install(DIRECTORY include/
 
 install(FILES 
   cbs_planner_plugins.xml 
-  # ecbs_planner_plugins.xml 
+  ecbs_planner_plugins.xml 
   sipp_planner_plugins.xml
   DESTINATION share/${PROJECT_NAME}
 )
 
 ament_export_include_directories(include)
 ament_export_libraries(cbs_planner)
-# ament_export_libraries(ecbs_planner)
+ament_export_libraries(ecbs_planner)
 ament_export_libraries(sipp_planner)
 ament_export_dependencies(${dependencies})
 ament_package()
