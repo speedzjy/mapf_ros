@@ -67,19 +67,13 @@ public:
     plan_topic_.resize(agent_num_);
 
     for (int i = 0; i < agent_num_; ++i) {
-      this->declare_parameter<std::string>(
-          "base_frame_id.agent_" + std::to_string(i), "base_link");
-      this->declare_parameter<std::string>(
-          "plan_topic.agent_" + std::to_string(i), "plan");
-      this->declare_parameter<std::string>(
-          "agent_name.agent_" + std::to_string(i), "agent_name_0");
+      this->declare_parameter<std::string>("base_frame_id.agent_" + std::to_string(i), "base_link");
+      this->declare_parameter<std::string>("plan_topic.agent_" + std::to_string(i), "plan");
+      this->declare_parameter<std::string>("agent_name.agent_" + std::to_string(i), "agent_name_0");
 
-      this->get_parameter("base_frame_id.agent_" + std::to_string(i),
-                          base_frame_id_[i]);
-      this->get_parameter("plan_topic.agent_" + std::to_string(i),
-                          plan_topic_[i]);
-      this->get_parameter("agent_name.agent_" + std::to_string(i),
-                          agent_name_[i]);
+      this->get_parameter("base_frame_id.agent_" + std::to_string(i), base_frame_id_[i]);
+      this->get_parameter("plan_topic.agent_" + std::to_string(i), plan_topic_[i]);
+      this->get_parameter("agent_name.agent_" + std::to_string(i), agent_name_[i]);
     }
   }
 };
@@ -98,8 +92,7 @@ private:
   std::unique_ptr<std::thread> planner_thread_;
 
   using NavigateToPose = nav2_msgs::action::NavigateToPose;
-  using GoalHandleNavigateToPose =
-      rclcpp_action::ClientGoalHandle<NavigateToPose>;
+  using GoalHandleNavigateToPose = rclcpp_action::ClientGoalHandle<NavigateToPose>;
   using GoalHandleNavigateToPoseFuture =
       std::shared_future<std::shared_ptr<GoalHandleNavigateToPose>>;
 
@@ -115,43 +108,24 @@ public:
     ac_ptr_arr_.resize(agent_num_);
 
     for (int i = 0; i < agent_num_; ++i) {
-      ac_ptr_arr_[i] =
-          rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(
-              this, "/" + agent_name_[i] + "/navigate_to_pose");
+      ac_ptr_arr_[i] = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(
+          this, "/" + agent_name_[i] + "/navigate_to_pose");
     }
 
     sub_mapf_plan_ = this->create_subscription<mapf_msgs::msg::GlobalPlan>(
-        "global_plan", 1,
-        std::bind(&PlanExecutor::planCallback, this, std::placeholders::_1));
+        "global_plan", 1, std::bind(&PlanExecutor::planCallback, this, std::placeholders::_1));
 
-    planner_thread_ = std::make_unique<std::thread>(
-        std::bind(&PlanExecutor::mbStateThread, this));
+    planner_thread_ = std::make_unique<std::thread>(std::bind(&PlanExecutor::mbStateThread, this));
   }
 
   ~PlanExecutor() {}
 
-  void
-  goal_response_callback(const GoalHandleNavigateToPose::SharedPtr &goal_handle,
-                         const int &j,
-                         GoalHandleNavigateToPose::SharedPtr &goal_handle_) {
-    goal_handle_ = goal_handle;
-    if (!goal_handle) {
-      RCLCPP_ERROR(this->get_logger(), "Agent %u goal was rejected by server",
-                   j);
-    } else {
-      RCLCPP_INFO(this->get_logger(),
-                  "Agent %u goal accepted by server, waiting for result", j);
-    }
-  }
-
   void mbStateThread() {
-    RCLCPP_INFO(this->get_logger(),
-                "mapf_plan_thread: Plan and Read move base state...");
+    RCLCPP_INFO(this->get_logger(), "mapf_plan_thread: Plan and Read move base state...");
     rclcpp::Rate loop_rate(1);
 
     std::vector<GoalHandleNavigateToPoseFuture> send_goal_future_(agent_num_);
-    std::vector<GoalHandleNavigateToPose::SharedPtr> goal_handle_(agent_num_,
-                                                                  nullptr);
+    std::vector<GoalHandleNavigateToPose::SharedPtr> goal_handle_(agent_num_, nullptr);
 
     while (rclcpp::ok()) {
       loop_rate.sleep();
@@ -169,9 +143,8 @@ public:
             // time step, execute move_base
             if (i < plan_arr_[j].time_step.size()) {
               if (!ac_ptr_arr_[j]->wait_for_action_server()) {
-                RCLCPP_ERROR(
-                    this->get_logger(),
-                    "Agent %u action server not available after waiting", j);
+                RCLCPP_ERROR(this->get_logger(),
+                             "Agent %u action server not available after waiting", j);
                 rclcpp::shutdown();
               }
               RCLCPP_INFO(this->get_logger(), "Agent %u send goal...", j);
@@ -180,14 +153,19 @@ public:
 
               auto &goal_handle_ref = goal_handle_[j];
               send_goal_options.goal_response_callback =
-                  [this, &j, &goal_handle_ref](
-                      const GoalHandleNavigateToPose::SharedPtr &goal_handle) {
-                    goal_response_callback(goal_handle, j, goal_handle_ref);
+                  [this, j,
+                   &goal_handle_ref](const GoalHandleNavigateToPose::SharedPtr &goal_handle) {
+                    goal_handle_ref = goal_handle;
+                    if (!goal_handle) {
+                      RCLCPP_ERROR(this->get_logger(), "Agent %u goal was rejected by server", j);
+                    } else {
+                      RCLCPP_INFO(this->get_logger(),
+                                  "Agent %u goal accepted by server, waiting for result", j);
+                    }
                   };
 
               auto goal_msg = getMBGoalFromGeoPose(plan_arr_[j].plan.poses[i]);
-              send_goal_future_[j] =
-                  ac_ptr_arr_[j]->async_send_goal(goal_msg, send_goal_options);
+              send_goal_future_[j] = ac_ptr_arr_[j]->async_send_goal(goal_msg, send_goal_options);
             }
           } // end for
 
@@ -210,18 +188,26 @@ public:
           RCLCPP_INFO(this->get_logger(), "wait for reach step goal...");
           for (int j = 0; j < plan_arr_.size(); ++j) {
             if (i < plan_arr_[j].time_step.size()) {
-              auto result_future =
-                  ac_ptr_arr_[j]->async_get_result(send_goal_future_[j].get());
+              auto result_future = ac_ptr_arr_[j]->async_get_result(send_goal_future_[j].get());
 
               while (rclcpp::ok()) {
                 auto status = result_future.wait_for(std::chrono::seconds(1));
-                // if (status == std::future_status::ready) {
-                //   auto result = result_future.get();
-                //   if (result.result &&
-                //       result.code == rclcpp_action::ResultCode::SUCCEEDED) {
-                //     break;
-                //   }
+                RCLCPP_INFO(this->get_logger(), "status loop: status %u", status);
+                if (status == std::future_status::ready) {
+                  auto result = result_future.get();
+                  RCLCPP_INFO(this->get_logger(), "status ready: %u", result.code);
+                  if (result.result && result.code == rclcpp_action::ResultCode::SUCCEEDED) {
+                    RCLCPP_INFO(this->get_logger(), "reach step goal break...");
+                    break;
+                  }
+                }
+                // auto result = result_future.get();
+                // RCLCPP_INFO(this->get_logger(), "result code: %u", result.code);
+                // if (result.result && result.code == rclcpp_action::ResultCode::SUCCEEDED) {
+                //   RCLCPP_INFO(this->get_logger(), "reach step goal break...");
+                //   break;
                 // }
+
                 // check if get new plan
                 lock.unlock();
                 loop_rate.sleep();
@@ -234,12 +220,9 @@ public:
 
               if (i == plan_arr_[j].time_step.size() - 1) {
                 RCLCPP_INFO(this->get_logger(),
-                            "Agent %d reached %dth step goal(" GREEN "END" NONE
-                            ")!",
-                            j, i);
+                            "Agent %d reached %dth step goal(" GREEN "END" NONE ")!", j, i);
               } else {
-                RCLCPP_INFO(this->get_logger(),
-                            "Agent %d reached %dth step goal!", j, i);
+                RCLCPP_INFO(this->get_logger(), "Agent %d reached %dth step goal!", j, i);
               }
             }
           } // end for
@@ -248,8 +231,7 @@ public:
     } // end while
   }
 
-  void
-  planCallback(const mapf_msgs::msg::GlobalPlan::SharedPtr mapf_global_plan) {
+  void planCallback(const mapf_msgs::msg::GlobalPlan::SharedPtr mapf_global_plan) {
     if (!equal(plan_arr_, mapf_global_plan->global_plan)) {
       std::lock_guard<std::mutex> lock(plan_mtx_);
 
@@ -265,19 +247,15 @@ public:
     }
   }
 
-  bool equal(const mapf_msgs::msg::SinglePlan &a,
-             const mapf_msgs::msg::SinglePlan &b) {
-    if (a.time_step.size() != b.time_step.size() ||
-        a.plan.poses.size() != b.plan.poses.size()) {
+  bool equal(const mapf_msgs::msg::SinglePlan &a, const mapf_msgs::msg::SinglePlan &b) {
+    if (a.time_step.size() != b.time_step.size() || a.plan.poses.size() != b.plan.poses.size()) {
       return false;
     }
     bool res = true;
     for (int i = 0; i < a.plan.poses.size(); ++i) {
-      res &=
-          (a.plan.poses[i].pose.position.x == b.plan.poses[i].pose.position.x &&
-           a.plan.poses[i].pose.position.y == b.plan.poses[i].pose.position.y &&
-           a.plan.poses[i].pose.orientation.w ==
-               b.plan.poses[i].pose.orientation.w);
+      res &= (a.plan.poses[i].pose.position.x == b.plan.poses[i].pose.position.x &&
+              a.plan.poses[i].pose.position.y == b.plan.poses[i].pose.position.y &&
+              a.plan.poses[i].pose.orientation.w == b.plan.poses[i].pose.orientation.w);
     }
     return res;
   }
