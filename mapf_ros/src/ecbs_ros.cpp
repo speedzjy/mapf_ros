@@ -181,7 +181,7 @@ bool ECBSROS::makePlan(const nav_msgs::msg::Path &start,
       return false;
     }
 
-    clearCell(start_x_i, start_y_i);
+    // clearCell(start_x_i, start_y_i);
     clearCell(goal_x_i, goal_y_i);
   } // end for
 
@@ -230,10 +230,7 @@ void ECBSROS::generatePlan(
   int &makespan = plan.makespan;
   for (const auto &s : solution) {
     cost += s.cost;
-    makespan = std::max<int>(makespan, s.cost);
   }
-  // add start point (the fisrt step is to get the center of the first grid)
-  makespan += 1;
 
   plan.global_plan.resize(solution.size());
 
@@ -257,7 +254,18 @@ void ECBSROS::generatePlan(
     // replace end point with goal point
     single_path.poses.back() = goal.poses[i];
 
+    // pop start point if it is not a inplace plan
+    if (single_path.poses.size() > 1) {
+      single_path.poses.erase(single_path.poses.begin());
+      single_plan.time_step.erase(single_plan.time_step.begin());
+    }
   } // end solution for
+
+  // compute makespan
+  makespan = 0;
+  for (const auto &single_plan : plan.global_plan) {
+    plan.makespan = std::max<int>(plan.makespan, single_plan.plan.poses.size());
+  }
 }
 
 void ECBSROS::worldToMap(const double &wx, const double &wy, unsigned int &mx,

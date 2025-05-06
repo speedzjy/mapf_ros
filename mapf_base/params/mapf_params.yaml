@@ -21,7 +21,7 @@ mapf:
 
       # ecbs
       ecbs:
-        suboptimality: 2.0
+        suboptimality: 1.2
 
       # the frame_id for each agent in the map
       base_frame_id:

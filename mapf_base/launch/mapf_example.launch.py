@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction
+from launch.actions import DeclareLaunchArgument, GroupAction, TimerAction
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, PushRosNamespace
 from launch_ros.substitutions import FindPackageShare
@@ -80,7 +80,7 @@ def generate_launch_description():
                         parameters=[
                             costmap_params,
                             mapf_params,
-                            # {"mapf_planner": "mapf_planner/ECBSROS"},
+                            {"mapf_planner": "mapf_planner/ECBSROS"},
                         ],
                     ),
                     Node(
@@ -98,26 +98,31 @@ def generate_launch_description():
                 ]
             ),
             # 3. Launch goal_transformer and plan_executor
-            GroupAction(
-                [
-                    Node(
-                        namespace="mapf",
-                        package="mapf_base",
-                        executable="goal_transformer",
-                        name="goal_transformer",
-                        output="screen",
-                        parameters=[mapf_params],
-                    ),
-                    Node(
-                        namespace="mapf",
-                        package="mapf_base",
-                        executable="plan_executor",
-                        name="plan_executor",
-                        output="screen",
-                        arguments=['--ros-args', '--log-level', "info"],
-                        parameters=[mapf_params],
-                    ),
-                ]
+            TimerAction(
+                period=2.0,
+                actions=[
+                    GroupAction(
+                        [
+                            Node(
+                                namespace="mapf",
+                                package="mapf_base",
+                                executable="goal_transformer",
+                                name="goal_transformer",
+                                output="screen",
+                                parameters=[mapf_params],
+                            ),
+                            Node(
+                                namespace="mapf",
+                                package="mapf_base",
+                                executable="plan_executor",
+                                name="plan_executor",
+                                output="screen",
+                                arguments=["--ros-args", "--log-level", "info"],
+                                parameters=[mapf_params],
+                            ),
+                        ]
+                    )
+                ],
             ),
         ]
     )
