@@ -38,6 +38,10 @@ mapf:
   plan_executor:
     ros__parameters:
       use_sim_time: true
+
+      xy_goal_tolerance: 0.2
+      yaw_goal_tolerance: 0.2
+
       # topic "(arg agent_name)/move_base/goal" will be send to move_base
       agent_num: 2
       agent_name:
