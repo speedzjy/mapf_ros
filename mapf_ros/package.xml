@@ -4,9 +4,9 @@
   <version>0.0.0</version>
   <description>The mapf algorithm package</description>
 
-  <maintainer email="speed@todo.todo">speed</maintainer>
+  <maintainer email="speed@mail.ustc.edu.cn">speed</maintainer>
 
-  <license>Apache-2.0</license>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

@@ -2,7 +2,8 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Junyi zhou
+ * Copyright (c) 2023 junyi zhou
+ * Copyright (c) 2025 junyi zhou
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,8 +31,7 @@
 namespace mapf {
 MAPFBase::MAPFBase(const rclcpp::NodeOptions &options)
     : nav2_util::LifecycleNode("mapf_base_node", "", options),
-      mapf_loader_("mapf_ros", "mapf::MAPFROS"), receive_mapf_goal_(false),
-      run_mapf_(false) {
+      mapf_loader_("mapf_ros", "mapf::MAPFROS"), receive_mapf_goal_(false), run_mapf_(false) {
   RCLCPP_INFO(get_logger(), "Creating");
 
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
@@ -55,8 +55,7 @@ MAPFBase::~MAPFBase() {
   delete state_machine_thread_;
 }
 
-nav2_util::CallbackReturn
-MAPFBase::on_configure(const rclcpp_lifecycle::State & /*state*/) {
+nav2_util::CallbackReturn MAPFBase::on_configure(const rclcpp_lifecycle::State & /*state*/) {
   RCLCPP_INFO(get_logger(), "Configuring");
 
   costmap_ros_->configure();
@@ -71,10 +70,8 @@ MAPFBase::on_configure(const rclcpp_lifecycle::State & /*state*/) {
 
   // goal in mapf form
   sub_mapf_goal_ = create_subscription<mapf_msgs::msg::Goal>(
-      "mapf_goal", 1,
-      std::bind(&MAPFBase::goalCallback, this, std::placeholders::_1));
-  pub_mapf_global_plan_ =
-      create_publisher<mapf_msgs::msg::GlobalPlan>("global_plan", 1);
+      "mapf_goal", 1, std::bind(&MAPFBase::goalCallback, this, std::placeholders::_1));
+  pub_mapf_global_plan_ = create_publisher<mapf_msgs::msg::GlobalPlan>("global_plan", 1);
 
   // 打印所有已加载的参数名称和值
   auto param_names = this->list_parameters({}, 10).names;
@@ -93,8 +90,7 @@ MAPFBase::on_configure(const rclcpp_lifecycle::State & /*state*/) {
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn
-MAPFBase::on_activate(const rclcpp_lifecycle::State & /*state*/) {
+nav2_util::CallbackReturn MAPFBase::on_activate(const rclcpp_lifecycle::State & /*state*/) {
   RCLCPP_INFO(get_logger(), "Activating");
 
   for (int i = 0; i < agent_num_; ++i) {
@@ -104,24 +100,20 @@ MAPFBase::on_activate(const rclcpp_lifecycle::State & /*state*/) {
 
   costmap_ros_->activate();
 
-  do_mapf_thread_ =
-      new boost::thread(boost::bind(&MAPFBase::doMAPFThread, this));
-  state_machine_thread_ =
-      new boost::thread(boost::bind(&MAPFBase::stateMachine, this));
+  do_mapf_thread_ = new boost::thread(boost::bind(&MAPFBase::doMAPFThread, this));
+  state_machine_thread_ = new boost::thread(boost::bind(&MAPFBase::stateMachine, this));
 
   // create a local planner
   try {
     mapf_planner_ = mapf_loader_.createUniqueInstance(planner_name_);
-    RCLCPP_INFO(this->get_logger(), "Created local_planner %s",
-                planner_name_.c_str());
+    RCLCPP_INFO(this->get_logger(), "Created local_planner %s", planner_name_.c_str());
     mapf_planner_->initialize(mapf_loader_.getName(planner_name_), costmap_ros_,
                               shared_from_this());
   } catch (const pluginlib::PluginlibException &ex) {
-    RCLCPP_FATAL(
-        this->get_logger(),
-        "Failed to create the %s planner, are you sure it is properly "
-        "registered and that the containing library is built? Exception: %s",
-        planner_name_.c_str(), ex.what());
+    RCLCPP_FATAL(this->get_logger(),
+                 "Failed to create the %s planner, are you sure it is properly "
+                 "registered and that the containing library is built? Exception: %s",
+                 planner_name_.c_str(), ex.what());
     return nav2_util::CallbackReturn::FAILURE;
   }
 
@@ -129,8 +121,7 @@ MAPFBase::on_activate(const rclcpp_lifecycle::State & /*state*/) {
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn
-MAPFBase::on_deactivate(const rclcpp_lifecycle::State & /*state*/) {
+nav2_util::CallbackReturn MAPFBase::on_deactivate(const rclcpp_lifecycle::State & /*state*/) {
   RCLCPP_INFO(get_logger(), "Deactivating");
 
   for (int i = 0; i < agent_num_; ++i) {
@@ -146,8 +137,7 @@ MAPFBase::on_deactivate(const rclcpp_lifecycle::State & /*state*/) {
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn
-MAPFBase::on_cleanup(const rclcpp_lifecycle::State & /*state*/) {
+nav2_util::CallbackReturn MAPFBase::on_cleanup(const rclcpp_lifecycle::State & /*state*/) {
   RCLCPP_INFO(get_logger(), "Cleaning up");
 
   // delete the planner
@@ -165,8 +155,7 @@ MAPFBase::on_cleanup(const rclcpp_lifecycle::State & /*state*/) {
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn
-MAPFBase::on_shutdown(const rclcpp_lifecycle::State &) {
+nav2_util::CallbackReturn MAPFBase::on_shutdown(const rclcpp_lifecycle::State &) {
   RCLCPP_INFO(get_logger(), "Shutting down");
   return nav2_util::CallbackReturn::SUCCESS;
 }
@@ -231,8 +220,7 @@ nav_msgs::msg::Path MAPFBase::getRobotPose() {
       tf2::toMsg(tf2::Transform::getIdentity(), start.poses[i].pose);
       tf_buffer_->transform(robot_pose, start.poses[i], global_frame_id_);
     } catch (const tf2::TransformException &ex) {
-      RCLCPP_ERROR(get_logger(), "Failed to transform pose for agent %d: %s", i,
-                   ex.what());
+      RCLCPP_ERROR(get_logger(), "Failed to transform pose for agent %d: %s", i, ex.what());
     }
   }
   return start;
@@ -242,10 +230,8 @@ bool MAPFBase::reachGoal() {
   bool reach = true;
   nav_msgs::msg::Path start = getRobotPose();
   for (int i = 0; i < start.poses.size(); ++i) {
-    double diff_x = start.poses[i].pose.position.x -
-                    goal_ros_.poses[i].pose.position.x,
-           diff_y = start.poses[i].pose.position.y -
-                    goal_ros_.poses[i].pose.position.y;
+    double diff_x = start.poses[i].pose.position.x - goal_ros_.poses[i].pose.position.x,
+           diff_y = start.poses[i].pose.position.y - goal_ros_.poses[i].pose.position.y;
     reach &= (abs(diff_x) < goal_tolerance_ && abs(diff_y) < goal_tolerance_);
   }
   return reach;
@@ -282,8 +268,7 @@ void MAPFBase::stateMachine() {
 }
 
 void MAPFBase::doMAPFThread() {
-  RCLCPP_INFO(this->get_logger(),
-              "MAPF thread: Start active mapf algorithm...");
+  RCLCPP_INFO(this->get_logger(), "MAPF thread: Start active mapf algorithm...");
   rclcpp::Rate loop_rate(10);
 
   try {
@@ -295,8 +280,7 @@ void MAPFBase::doMAPFThread() {
         nav_msgs::msg::Path start_ros = getRobotPose();
         double cost = 0;
         mapf_msgs::msg::GlobalPlan plan;
-        if (mapf_planner_->makePlan(start_ros, goal_ros_, plan, cost,
-                                    planner_time_tolerance_)) {
+        if (mapf_planner_->makePlan(start_ros, goal_ros_, plan, cost, planner_time_tolerance_)) {
           publishPlan(plan);
         }
       }

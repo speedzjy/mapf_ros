@@ -3,6 +3,7 @@
  * MIT License
  *
  * Copyright (c) 2023 Junyi zhou
+ * Copyright (c) 2025 Junyi zhou
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -40,8 +41,7 @@ class GoalTransformer : public rclcpp::Node {
 private:
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_mapf_goal_init_;
   rclcpp::Publisher<mapf_msgs::msg::Goal>::SharedPtr pub_mapf_goal_;
-  std::vector<rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr>
-      goal_sub_arr_;
+  std::vector<rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr> goal_sub_arr_;
 
   // mapf params
   int agent_num_;
@@ -76,35 +76,29 @@ GoalTransformer::GoalTransformer() : Node("goal_transformer_node") {
     this->get_parameter(goal_topic_param, goal_topic_[i]);
 
     geometry_msgs::msg::PoseStamped &pose_i = goal_arr_.goal.poses[i];
-    goal_sub_arr_[i] =
-        this->create_subscription<geometry_msgs::msg::PoseStamped>(
-            goal_topic_[i], 5,
-            [this,
-             &pose_i](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-              goalCallback(msg, pose_i);
-            });
+    goal_sub_arr_[i] = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+        goal_topic_[i], 5, [this, &pose_i](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+          goalCallback(msg, pose_i);
+        });
   }
 
   // subscribe goal init flag
   sub_mapf_goal_init_ = this->create_subscription<std_msgs::msg::Bool>(
       "goal_init_flag", 1,
-      std::bind(&GoalTransformer::goalInitCallback, this,
-                std::placeholders::_1));
+      std::bind(&GoalTransformer::goalInitCallback, this, std::placeholders::_1));
   // pub goal in mapf form
   pub_mapf_goal_ = this->create_publisher<mapf_msgs::msg::Goal>("mapf_goal", 1);
 }
 
 GoalTransformer::~GoalTransformer() {}
 
-void GoalTransformer::goalCallback(
-    const geometry_msgs::msg::PoseStamped::SharedPtr goal,
-    geometry_msgs::msg::PoseStamped &goal_pose) {
+void GoalTransformer::goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr goal,
+                                   geometry_msgs::msg::PoseStamped &goal_pose) {
   std::lock_guard<std::mutex> lock(goal_mtx);
   goal_pose = *goal;
 }
 
-void GoalTransformer::goalInitCallback(
-    const std_msgs::msg::Bool::SharedPtr init) {
+void GoalTransformer::goalInitCallback(const std_msgs::msg::Bool::SharedPtr init) {
   if (init->data) {
     goal_arr_.header.stamp = this->get_clock()->now();
     goal_arr_.initial = true;

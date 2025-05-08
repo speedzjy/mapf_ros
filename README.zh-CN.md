@@ -1,7 +1,7 @@
 # Multi-Agent Path Finding (MAPF) in ROS
 
 <div align='center'>
-  <img src='./doc/logo.png'/>
+  <img src='./doc/logo.jpg'/>
 </div>
 
 <div align='center'>
@@ -10,52 +10,11 @@
 
 ---
 
-<!-- TOC -->
-
-- [Multi-Agent Path Finding (MAPF) in ROS](#multi-agent-path-finding-mapf-in-ros)
-  - [项目简介](#项目简介)
-  - [Example](#example)
-    - [Conflict-Based Search (CBS)](#conflict-based-search-cbs)
-      - [参考文献](#参考文献)
-    - [Enhanced Conflict-Based Search (ECBS)](#enhanced-conflict-based-search-ecbs)
-      - [参考文献](#参考文献-1)
-    - [Prioritized Planning using SIPP](#prioritized-planning-using-sipp)
-      - [参考文献](#参考文献-2)
-  - [Build](#build)
-  - [Launch](#launch)
-    - [example launch](#example-launch)
-    - [Notes:](#notes)
-  - [代码架构](#代码架构)
-    - [Nodes](#nodes)
-      - [1 mapf\_base](#1-mapf_base)
-        - [1.1 节点结构](#11-节点结构)
-        - [1.2 订阅话题](#12-订阅话题)
-        - [1.3 发布话题](#13-发布话题)
-        - [1.4 节点参数](#14-节点参数)
-      - [2 goal\_transformer](#2-goal_transformer)
-        - [2.1 节点结构](#21-节点结构)
-        - [2.2 订阅话题](#22-订阅话题)
-        - [2.3 发布话题](#23-发布话题)
-        - [2.4 节点参数](#24-节点参数)
-      - [3 plan\_executor](#3-plan_executor)
-        - [3.1 节点结构](#31-节点结构)
-        - [3.2 订阅话题](#32-订阅话题)
-        - [3.3 发布话题](#33-发布话题)
-        - [3.4 节点参数](#34-节点参数)
-      - [4 全局节点结构](#4-全局节点结构)
-  - [](#)
-    - [ROS 插件结构](#ros-插件结构)
-
-<!-- /TOC -->
-<!-- /TOC -->
-
 ## 项目简介
 
 多智能体路径规划 (Multi-Agent Path Finding, MAPF) 研究多智能体的路径规划算法，为多机系统规划无冲突的最优路径．
 
-本项目将多机路径规划算法(Multi-Agent Path Finding, MAPF)源码转换为ros实现．算法接口采用ros插件形式编写，利于扩展自己的多机规划方法．
-
-本项目地址：[https://github.com/speedzjy/mapf_ros](https://github.com/speedzjy/mapf_ros)
+本项目将多机路径规划算法(Multi-Agent Path Finding, MAPF)源码转换为ros2实现．算法接口采用ros2插件形式编写，利于扩展自己的多机规划方法．
 
 源算法库：[https://github.com/whoenig/libMultiRobotPlanning](https://github.com/whoenig/libMultiRobotPlanning)
 
@@ -67,13 +26,12 @@
 
 ## Example
 
-gif 展示的测试用例仓库在 [https://github.com/speedzjy/ridgeback_mapf](https://github.com/speedzjy/ridgeback_mapf)
+gif 展示的测试用例仓库在 [https://github.com/speedzjy/ridgeback_mapf](https://github.com/speedzjy/ridgeback_mapf/tree/humble)
+
+![](./doc/mapf_demo.gif)
 
 ### Conflict-Based Search (CBS)
 CBS 是一族方法．算法的思想主要将多机规划分为**两层**，**底层**执行带有约束的单机规划，例如用传统 A* 算法，**顶层**遍历底层的规划路径，解决路径之间的冲突并施加约束．CBS 算法给出 MAPF 问题的全局最优结果．
-
-
-![](./doc/cbs.gif)
 
 #### 参考文献
 
@@ -82,8 +40,6 @@ CBS 是一族方法．算法的思想主要将多机规划分为**两层**，**�
 ### Enhanced Conflict-Based Search (ECBS)
 
 ECBS 基于 CBS, 在给定次优条件下给出比 CBS 更快的次优结果．
-
-![](./doc/ecbs.gif)
 
 #### 参考文献
 
@@ -95,15 +51,7 @@ SIPP 算法不属于 CBS 类算法，这个算法提出了一个安全间隔(saf
 
 实际上，SIPP 是一个考虑动态障碍物轨迹的单机规划算法. 通过将多机系统中的机器人按优先级排列，先进行规划的机器人的轨迹在后进行规划的机器人 SIPP 算法中会被当作动态障碍物轨迹来处理.
 
-源码的作者没有写 swap 情况的处理办法，后续有空研究一下，看看能不能补全．
-
-|             No swap (Success)              |
-| :----------------------------------------: |
-| ![No swap success](./doc/sipp_no_swap.gif) |
-
-|      Swap (Failure)      |
-| :----------------------: |
-| ![](./doc/sipp_swap.gif) |
+源码的作者没有写 swap 情况的处理办法．
 
 #### 参考文献
 
@@ -111,51 +59,18 @@ SIPP 算法不属于 CBS 类算法，这个算法提出了一个安全间隔(saf
 
 ## Build
 
-参照普通ros包编译方式:
-
-```bash
-catkin_make
+```
+mkdir -p mapf_ws/src && cd mapf_ws/src
+git clone -b humble https://github.com/speedzjy/mapf_ros.git 
+cd ..
+colcon build --symlink-install
 ```
 
 ## Launch
 
-建议先看看下方的 [ 代码架构](#code_structure) 部分, 再来看看 launch.
+ launch 文件放在 [mapf_base/launch](https://github.com/speedzjy/mapf_ros/blob/humble/mapf_base/launch/mapf_example.launch.py)
 
-下面的示例 launch 文件放在 [mapf_base/launch](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/launch/mapf_example.launch)
-### example launch
-```xml
-<launch>
-
-  <!-- 1.加载低分辨率地图 -->
-  <arg name="map" default="mymap_low_resolution.yaml" />
-  <group ns="mapf_base">
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find ros_package_name)/maps/$(arg map)" />
-  </group>
-
-  <!-- 2. launch mapf_base node -->
-  <node pkg="mapf_base" type="mapf_base" name="mapf_base" output="screen" respawn="true">
-    <rosparam file="$(find mapf_base)/params/costmap_params.yaml" command="load" ns="global_costmap" />
-    <rosparam file="$(find mapf_base)/params/mapf_params.yaml" command="load" />
-
-    <!-- 规划器名称参数; possible values: {
-    mapf_planner/CBSROS, 
-    mapf_planner/ECBSROS,
-    mapf_planner/SIPPROS
-    } -->
-    <param name="mapf_planner" value="mapf_planner/SIPPROS" />
-    <!-- <rosparam file="$(find mapf_base)/params/ecbs_params.yaml" command="load" /> -->
-  </node>
-
-  <!-- 3. launch goal_transformer and plan_executor -->
-  <group ns="mapf_base">
-    <node pkg="mapf_base" type="goal_transformer" name="goal_transformer" output="screen"> </node>
-    <node pkg="mapf_base" type="plan_executor" name="plan_executor" output="screen"> </node>
-  </group>
-
-</launch>
-```
-
-有三个参数文件需要配置: [mapf_params.yaml](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/params/mapf_params.yaml), [costmap_params](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/params/costmap_params.yaml) and [ecbs_params.yaml](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/params/ecbs_params.yaml)(If choose ecbs planner).
+有 2 个参数文件需要配置: [mapf_params.yaml](https://github.com/speedzjy/mapf_ros/blob/humble/mapf_base/params/mapf_params.yaml), [costmap_params](https://github.com/speedzjy/mapf_ros/blob/humble/mapf_base/params/costmap_params.yaml)
 
 ### Notes: 
 强烈建议采用**低分辨率**地图用于 mapf 多机规划，**高分辨率**地图用于单机器人局部规划．原因如下:
@@ -170,9 +85,9 @@ catkin_make
 #### 1 mapf_base
 
 ##### 1.1 节点结构
-mapf_base 节点参照 ros navigation 包中 move_base 的功能，作为 mapf 算法的中央控制器，调度核心算法运行.
+mapf_base 节点参照 ros2 navigation2 包中 nav_planner 的功能，作为 mapf 算法的中央控制器，调度核心算法运行.
 
-**Notes: mapf_base节点只生成 global plan，不下发速度控制命令。 可以按照 plan 的每个 time step 发送给move_base，按照时间步执行控制命令.**
+**Notes: mapf_base节点只生成 global plan，不下发速度控制命令。 可以按照 plan 的每个 time step 发送给 nav2 的导航节点，按照时间步执行控制命令.**
 
 ![](./doc/mapf_base_node.png)
 

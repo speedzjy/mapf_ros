@@ -1,7 +1,7 @@
 # Multi-Agent Path Finding (MAPF) in ROS
 
 <div align='center'>
-  <img src='./doc/logo.png'/>
+  <img src='./doc/logo.jpg'/>
 </div>
 
 <div align='center'>
@@ -10,48 +10,9 @@
 
 ---
 
-<!-- TOC -->
-
-- [Multi-Agent Path Finding (MAPF) in ROS](#multi-agent-path-finding-mapf-in-ros)
-  - [Introduction](#introduction)
-  - [Example](#example)
-    - [Conflict-Based Search (CBS)](#conflict-based-search-cbs)
-      - [Reference](#reference)
-    - [Enhanced Conflict-Based Search (ECBS)](#enhanced-conflict-based-search-ecbs)
-      - [Reference](#reference-1)
-    - [Prioritized Planning using SIPP](#prioritized-planning-using-sipp)
-      - [Reference](#reference-2)
-  - [Build](#build)
-  - [Launch](#launch)
-    - [example launch](#example-launch)
-    - [Notes: (very importment)](#notes-very-importment)
-  - [Introduction of Code Structure](#introduction-of-code-structure)
-    - [Nodes](#nodes)
-      - [1 mapf\_base](#1-mapf_base)
-        - [1.1 Node sturcture](#11-node-sturcture)
-        - [1.2 Subscribed Topics](#12-subscribed-topics)
-        - [1.3 Published Topics](#13-published-topics)
-        - [1.4 Parameters](#14-parameters)
-      - [2 goal\_transformer](#2-goal_transformer)
-        - [2.1 Node sturcture](#21-node-sturcture)
-        - [2.2 Subscribed Topics](#22-subscribed-topics)
-        - [2.3 Published Topics](#23-published-topics)
-        - [2.4 Parameters](#24-parameters)
-      - [3 plan\_executor](#3-plan_executor)
-        - [3.1 Node sturcture](#31-node-sturcture)
-        - [3.2 Subscribed Topics](#32-subscribed-topics)
-        - [3.3 Published Topics](#33-published-topics)
-        - [3.4 Parameters](#34-parameters)
-      - [4 whole nodes graph](#4-whole-nodes-graph)
-    - [ROS plugin picture](#ros-plugin-picture)
-
-<!-- /TOC -->
-<!-- /TOC -->
-
-
 ## Introduction
-In order to verify the multi-agent path planning algorithms on **ROS**, 
-this repository writes a **ROS wrapper** on the core code of some mapf algorithms(which mainly come from [HERE](https://github.com/whoenig/libMultiRobotPlanning)) as **ros plugins**. The content of [this repository](https://github.com/atb033/multi_agent_path_planning) also provides a lot of help.
+In order to verify the multi-agent path planning algorithms on **ROS2**, 
+this repository writes a **ROS2 wrapper** on the core code of some mapf algorithms(which mainly come from [HERE](https://github.com/whoenig/libMultiRobotPlanning)) as **ros2 plugins**. The content of [this repository](https://github.com/atb033/multi_agent_path_planning) also provides a lot of help.
 
 The following algorithms are currently implemented:
 
@@ -61,7 +22,9 @@ The following algorithms are currently implemented:
 
 ## Example
 
-The test case repository shown in gif is in [https://github.com/speedzjy/ridgeback_mapf](https://github.com/speedzjy/ridgeback_mapf)
+The test case repository shown in gif is in [https://github.com/speedzjy/ridgeback_mapf](https://github.com/speedzjy/ridgeback_mapf/tree/humble)
+
+![](./doc/mapf_demo.gif)
 
 ### Conflict-Based Search (CBS)
 
@@ -69,7 +32,6 @@ Conflict Based Search(CBS) guarantees **optimal** solutions. CBS is a two-level 
 
 On the low-level of the implementation, A* is used to find paths for individual agents.
 
-![](./doc/cbs.gif)
 
 #### Reference
 
@@ -80,7 +42,6 @@ On the low-level of the implementation, A* is used to find paths for individual 
 Enhanced Conflict-Based-Search (ECBS) provides a **suboptimal** solution for multi-agent path finding. In other words, ECBS provides a "quick" solution, rather than the optimal solution
 provided by CBS.
 
-![](./doc/ecbs.gif)
 
 #### Reference
 
@@ -92,65 +53,24 @@ provided by CBS.
 
  The implementation of Prioritized Planning using SIPP is an **example code**. The code to check swap has not been written yet.
 
-|             No swap (Success)              |
-| :----------------------------------------: |
-| ![No swap success](./doc/sipp_no_swap.gif) |
-
-|      Swap (Failure)      |
-| :----------------------: |
-| ![](./doc/sipp_swap.gif) |
-
 #### Reference
 
 - [SIPP: Safe Interval Path Planning for Dynamic Environments](https://www.cs.cmu.edu/~maxim/files/sipp_icra11.pdf)
 
 ## Build
 
-The same process as the ros code package, just:
-
-```bash
-catkin_make
+```
+mkdir -p mapf_ws/src && cd mapf_ws/src
+git clone -b humble https://github.com/speedzjy/mapf_ros.git 
+cd ..
+colcon build --symlink-install
 ```
 
 ## Launch
 
-Take a look at the [code structure bellow](#code_structure), it might help.
+The launch file is placed in the [mapf_base/launch](https://github.com/speedzjy/mapf_ros/blob/humble/mapf_base/launch/mapf_example.launch.py)
 
-The following is the sample code for launch, which is placed in the [mapf_base/launch](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/launch/mapf_example.launch)
-### example launch
-```xml
-<launch>
-
-  <!-- 1.load the low resolution map -->
-  <arg name="map" default="mymap_low_resolution.yaml" />
-  <group ns="mapf_base">
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find ros_package_name)/maps/$(arg map)" />
-  </group>
-
-  <!-- 2. launch mapf_base node -->
-  <node pkg="mapf_base" type="mapf_base" name="mapf_base" output="screen" respawn="true">
-    <rosparam file="$(find mapf_base)/params/costmap_params.yaml" command="load" ns="global_costmap" />
-    <rosparam file="$(find mapf_base)/params/mapf_params.yaml" command="load" />
-
-    <!-- name of mapf_planner; possible values: {
-    mapf_planner/CBSROS, 
-    mapf_planner/ECBSROS,
-    mapf_planner/SIPPROS
-    } -->
-    <param name="mapf_planner" value="mapf_planner/SIPPROS" />
-    <!-- <rosparam file="$(find mapf_base)/params/ecbs_params.yaml" command="load" /> -->
-  </node>
-
-  <!-- 3. launch goal_transformer and plan_executor -->
-  <group ns="mapf_base">
-    <node pkg="mapf_base" type="goal_transformer" name="goal_transformer" output="screen"> </node>
-    <node pkg="mapf_base" type="plan_executor" name="plan_executor" output="screen"> </node>
-  </group>
-
-</launch>
-```
-
-There are three param files that need to be configured: [mapf_params.yaml](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/params/mapf_params.yaml), [costmap_params](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/params/costmap_params.yaml) and [ecbs_params.yaml](https://github.com/speedzjy/mapf_ros/blob/main/mapf_base/params/ecbs_params.yaml)(If choose ecbs planner).
+There are two param files that need to be configured: [mapf_params.yaml](https://github.com/speedzjy/mapf_ros/blob/humble/mapf_base/params/mapf_params.yaml), [costmap_params](https://github.com/speedzjy/mapf_ros/blob/humble/mapf_base/params/costmap_params.yaml).
 
 ### Notes: (very importment)
 It is **strongly recommended** to use **low-resolution maps for mapf planning** search and **high-resolution maps for local planning** with a single robot. The reasons are as follows:
@@ -166,7 +86,7 @@ It is **strongly recommended** to use **low-resolution maps for mapf planning** 
 #### 1 mapf_base
 
 ##### 1.1 Node sturcture
-The mapf_base node is the central control node just like move_base in ros navigation package.
+The mapf_base node is the central control node just like `nav2_planner` in `ros2 navigation2` package.
 
 **Notes: The mapf_base node only generates plans and does not publish control commands. A possible control method is to send the move_base goals to execute the control commands according to the time step of the plan.**
 

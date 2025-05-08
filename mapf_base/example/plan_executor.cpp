@@ -2,7 +2,8 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Junyi zhou
+ * Copyright (c) 2023 junyi zhou
+ * Copyright (c) 2025 junyi zhou
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -149,7 +150,7 @@ public:
     while (rclcpp::ok() && !pose_initalize_) {
       loop_rate.sleep();
     }
-    // 初始化为当前位置
+
     last_goals_ = cur_poses_;
   }
 
@@ -162,9 +163,9 @@ public:
     while (rclcpp::ok()) {
       loop_rate.sleep();
 
+      // get current pose
       for (int i = 0; i < agent_num_; ++i) {
         try {
-          // 准备输入 pose
           geometry_msgs::msg::PoseStamped robot_pose;
           tf2::toMsg(tf2::Transform::getIdentity(), robot_pose.pose);
           tf2::toMsg(tf2::Transform::getIdentity(), cur_poses_[i].pose);
@@ -197,11 +198,9 @@ public:
         std::unique_lock<std::mutex> lock(plan_mtx_);
         get_plan_ = false;
 
-        // 每个机器人的当前终点
         std::vector<geometry_msgs::msg::PoseStamped> cur_final_goal(agent_num_);
         std::vector<geometry_msgs::msg::PoseStamped> cur_goal_(agent_num_);
 
-        // 根据每个机器人的当前 goal 是否在原地来设置每个机器人的状态
         for (int n = 0; n < agent_num_; ++n) {
           last_goals_[n] = cur_final_goal[n] = plan_arr_[n].plan.poses.back();
         }
@@ -267,7 +266,7 @@ public:
                   }
 
                 } else {
-                  if (nearToCurGoal(cur_poses_[j], cur_goal_[j], 0.3)) {
+                  if (nearToCurGoal(cur_poses_[j], cur_goal_[j], 0.4)) {
                     RCLCPP_INFO(this->get_logger(), "Agent %d reached %dth step goal!", j, i);
                     break;
                   }
@@ -307,7 +306,6 @@ public:
       get_plan_ = true;
       make_span_ = mapf_global_plan->makespan;
       for (int i = 0; i < agent_num_; ++i) {
-        // if
         plan_arr_[i] = mapf_global_plan->global_plan[i];
       }
       RCLCPP_INFO(this->get_logger(), GREEN "Get New plan.." NONE);

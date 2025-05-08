@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>mapf_base</name>
-  <version>0.0.0</version>
-  <description>The mapf base package</description>
+  <version>2.0.0</version>
+  <description>The mapf base package 2.0</description>
 
-  <maintainer email="speed@todo.todo">speed</maintainer>
+  <maintainer email="speed@mail.ustc.edu.cn">speed</maintainer>
 
-  <license>Apache-2.0</license>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
